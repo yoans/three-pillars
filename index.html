@@ -58,7 +58,7 @@
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
                                     <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-teal-500"></span>
                                 </span>
-                                Engine: <span id="engine-status-text" class="text-rose-455 font-extrabold uppercase animate-pulse">PAUSED</span>
+                                Engine: <span id="engine-status-text" class="text-teal-300 font-extrabold uppercase">READY</span>
                             </div>
                         </div>
                     </div>
@@ -74,7 +74,7 @@
                 <div class="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-start">
                     <!-- Standard Clock Speeds -->
                     <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-855 shadow-inner">
-                        <button id="btn-cockpit-pause" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-md transition scale-95 duration-100">
+                        <button id="btn-cockpit-pause" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 shadow-md transition scale-95 duration-100">
                             <i class="fa-solid fa-pause"></i> PAUSE
                         </button>
                         <button id="btn-cockpit-normal" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-105">
@@ -285,11 +285,11 @@
                 <div id="active-event-card" class="flex-1 flex flex-col justify-between gap-4 select-none opacity-0 translate-y-2 transition-all duration-300">
                     
                     <!-- Player-led milestone banner -->
-                    <div id="decision-countdown-banner" class="hidden bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-xs transition duration-300">
+                    <div id="decision-milestone-banner" class="hidden bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-xs transition duration-300">
                         <span class="text-teal-300 font-extrabold flex items-center gap-1.5 tracking-wider uppercase text-[10px]">
                             <i class="fa-solid fa-sparkles"></i> Life Moment
                         </span>
-                        <span id="decision-time-left" class="bg-slate-950 text-teal-200 border border-teal-500/20 font-black px-2 py-0.5 rounded-lg text-[9px] tracking-wide shadow text-right">Choose when ready</span>
+                        <span id="decision-ready-label" class="bg-slate-950 text-teal-200 border border-teal-500/20 font-black px-2 py-0.5 rounded-lg text-[9px] tracking-wide shadow text-right">Choose when ready</span>
                     </div>
 
                     <!-- Speaker Advisor Identity Card -->

@@ -1903,17 +1903,14 @@ const RANDOM_EVENTS_DECK = [
 ];
 
 // Single ticker clock cycle - seasonal progression update
-function tickSeason() {
-    if (gameState.isPaused) return;
+function tickSeason(forceAdvance = false) {
+    if (gameState.isPaused && !forceAdvance) return;
 
-    // Tick down and auto-expire choice card if standard options are active
+    // Player-led pacing: life waits for the player to resolve active decisions.
     if (gameState.currentEvent !== null) {
-        gameState.currentEventRemainingSeasons--;
-        updateDecisionCountdownVisual();
-        if (gameState.currentEventRemainingSeasons <= 0) {
-            expireCurrentDecision();
-            return; // Halt further tick processing during this cycle
-        }
+        updateDecisionMilestoneVisual();
+        setPlayerLedWaitState("CHOICE READY");
+        return;
     }
 
     // Check if player age is past retirement limit
@@ -1982,13 +1979,17 @@ function tickSeason() {
         healthSalaryAdjustment = Math.round(quarterlyGrossSalary * 0.05); // +5% Focus bonus
         quarterlyGrossSalary += healthSalaryAdjustment;
     } else if (gameState.health < 30) {
-        healthSalaryAdjustment = -Math.round(quarterlyGrossSalary * 0.25); // -20% Extended sick leave hit
+        healthSalaryAdjustment = -Math.round(quarterlyGrossSalary * 0.15); // Focus and energy drag
         quarterlyGrossSalary += healthSalaryAdjustment;
+        gameState.healthCrisisSeasons++;
         
-        // Forced quarterly medical diagnostic fees
-        const sickFee = 1500;
-        gameState.wealth -= sickFee;
-        addLog(`🩺 <span class="text-rose-400 font-semibold">Medical bill emergency:</span> Slashed $1,500 due to chronic physical health negligence!`, true);
+        if (gameState.healthCrisisSeasons === 1 || gameState.healthCrisisSeasons % 4 === 0) {
+            const sickFee = 750;
+            gameState.wealth -= sickFee;
+            addLog(`🩺 <span class="text-amber-300 font-semibold">Health warning:</span> Low energy reduced earning power and added $750 in care costs. Recovery options may appear soon.`, true);
+        }
+    } else {
+        gameState.healthCrisisSeasons = 0;
     }
 
     // Standard core monthly expenses
@@ -2006,10 +2007,10 @@ function tickSeason() {
         gameState.debt += CC_DebtAccum;
         gameState.wealth = 0; // cash resets to empty
         
-        // Penality CC rates spike to standard 19.8% annual compound!
+        // Credit-card balances are costly, but catch-up opportunities can help players recover.
         gameState.debtInterestRate = 0.198;
         
-        addLog(`🚨 <span class="text-rose-400 font-black uppercase">NSF Account Alert:</span> Fluid cash empty! Forced to transfer <span class="text-rose-400 font-bold">$${CC_DebtAccum.toLocaleString()}</span> deficit onto toxic credit lines. Personal interest rate spiked to <span class="text-rose-400 font-black">19.8%</span>!`, true);
+        addLog(`💳 <span class="text-amber-300 font-black uppercase">Credit line used:</span> Empty cash moved <span class="text-amber-300 font-bold">$${CC_DebtAccum.toLocaleString()}</span> onto high-interest credit at <span class="text-amber-300 font-black">19.8%</span>. Watch for a catch-up option.`, true);
         
         // Major Happiness penalty from debt spiral stress
         gameState.happiness = Math.max(0, gameState.happiness - 10);
@@ -2017,13 +2018,13 @@ function tickSeason() {
 
     // 3. PILLAR DYNAMICS - DECAY AND BONUSES
     // Standard natural health and joy decays over season time
-    gameState.happiness = Math.max(0, gameState.happiness - 1.5);
-    gameState.health = Math.max(0, gameState.health - 2.0);
+    gameState.happiness = Math.max(0, gameState.happiness - 0.75);
+    gameState.health = Math.max(0, gameState.health - 0.65);
 
     // Side Hustle fatigue drag
     if (gameState.hasSideHustle) {
-        gameState.health = Math.max(0, gameState.health - 2.5);
-        gameState.happiness = Math.max(0, gameState.happiness - 1.5);
+        gameState.health = Math.max(0, gameState.health - 1.0);
+        gameState.happiness = Math.max(0, gameState.happiness - 0.75);
     }
 
     // Leisure recovery when fully unemployed
@@ -2033,23 +2034,23 @@ function tickSeason() {
 
     // Food adjustments
     if (gameState.activeHabits.organicFood) {
-        gameState.health = Math.min(100, gameState.health + 4.5);
-        gameState.happiness = Math.min(100, gameState.happiness + 1.0);
+        gameState.health = Math.min(100, gameState.health + 1.5);
+        gameState.happiness = Math.min(100, gameState.happiness + 0.75);
     } else {
-        gameState.health = Math.max(0, gameState.health - 0.5); // fast food degradation
+        gameState.health = Math.max(0, gameState.health - 0.25); // lower nutrition drag
     }
 
     // Fitness adjustments
     if (gameState.activeHabits.gym) {
-        gameState.health = Math.min(100, gameState.health + 5.5);
-        gameState.happiness = Math.min(100, gameState.happiness + 2.0);
+        gameState.health = Math.min(100, gameState.health + 2.0);
+        gameState.happiness = Math.min(100, gameState.happiness + 1.0);
     }
 
     // Debt stress happiness dampener
     if (gameState.debt > 25000) {
-        gameState.happiness = Math.max(0, gameState.happiness - 3.5);
+        gameState.happiness = Math.max(0, gameState.happiness - 1.5);
     } else if (gameState.debt > 5000) {
-        gameState.happiness = Math.max(0, gameState.happiness - 1.0);
+        gameState.happiness = Math.max(0, gameState.happiness - 0.5);
     }
 
     // Sports car temporary thrill decay (Hedonic treadmill)
@@ -2118,6 +2119,201 @@ function updateSeasonalEffects() {
     }
 }
 
+function ensureCatchUpFlags() {
+    if (!gameState.catchUpOffered) {
+        gameState.catchUpOffered = { health: false, debt: false, cashDebt: false };
+    }
+}
+
+function createHealthCatchUpEvent() {
+    return {
+        title: "Recovery Plan Check-In",
+        speaker: "Community Health Coach",
+        avatar: "🧘",
+        tag: "RECOVERY",
+        description: "Your body is sending early warning signs. Nothing is over, but this is a good moment to choose a recovery plan before stress becomes a crisis.",
+        literacy: "<strong>Preventive Care:</strong> Small recovery investments can protect income, reduce future medical bills, and keep life choices open.",
+        choices: [
+            {
+                label: "Join a basic gym and sleep routine ($60/mo)",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 18,
+                    happinessChange: 6,
+                    custom: (state) => {
+                        state.activeHabits.gym = true;
+                        state.gymCost = 60;
+                        state.healthCrisisSeasons = 0;
+                        addLog("🧘 Recovery plan started: basic gym, sleep routine, and weekly movement now support health each season.", true);
+                    }
+                }
+            },
+            {
+                label: "Use a community clinic preventive checkup ($500)",
+                effects: {
+                    cashChange: -500,
+                    debtIncrease: 0,
+                    healthChange: 12,
+                    happinessChange: 2,
+                    custom: (state) => {
+                        state.healthCrisisSeasons = 0;
+                        addLog("🩺 Preventive clinic visit caught small issues early. Health recovered before it became a major expense.", true);
+                    }
+                }
+            },
+            {
+                label: "Take a low-cost reset week and reduce strain ($300 lost income)",
+                effects: {
+                    cashChange: -300,
+                    debtIncrease: 0,
+                    healthChange: 8,
+                    happinessChange: 8,
+                    custom: (state) => {
+                        state.healthCrisisSeasons = 0;
+                        addLog("🌿 Took a reset week. It cost income, but restored enough energy to keep moving.");
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function createDebtCatchUpEvent() {
+    return {
+        title: "Credit Counselor Catch-Up Plan",
+        speaker: "Nonprofit Credit Counselor",
+        avatar: "💳",
+        tag: "DEBT HELP",
+        description: "Your high-interest balance is growing, but lenders would rather see a workable payment plan than a total collapse. You can still stabilize the situation.",
+        literacy: "<strong>Debt Stabilization:</strong> Real life includes hardship plans, refinancing, selling expensive assets, and structured repayment. These choices still cost something, but they stop runaway compounding.",
+        choices: [
+            {
+                label: "Enter hardship repayment plan (lower APR, partial fee waiver)",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 0,
+                    happinessChange: 6,
+                    custom: (state) => {
+                        const waived = Math.min(9000, Math.round(state.debt * 0.18));
+                        state.debt = Math.max(0, state.debt - waived);
+                        state.debtInterestRate = Math.min(state.debtInterestRate, 0.09);
+                        addLog(`💳 Hardship plan approved. Fees waived: $${waived.toLocaleString()}. Debt APR reduced to 9.0%.`, true);
+                    }
+                }
+            },
+            {
+                label: "Sell lifestyle costs and refinance the balance",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 2,
+                    happinessChange: -5,
+                    custom: (state) => {
+                        const payoff = Math.min(12000, Math.round(state.debt * 0.22));
+                        state.debt = Math.max(0, state.debt - payoff);
+                        state.debtInterestRate = Math.min(state.debtInterestRate, 0.11);
+                        if (state.activeTransport === "sports_car") {
+                            state.activeTransport = "walking";
+                            state.transportCost = 60;
+                            state.insuranceCost = Math.max(0, state.insuranceCost - 120);
+                        }
+                        addLog(`🔁 Refinanced and cut lifestyle drag. Debt reduced by $${payoff.toLocaleString()} and recurring transport pressure fell.`, true);
+                    }
+                }
+            },
+            {
+                label: "Keep current plan and monitor it for now",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 0,
+                    happinessChange: -3,
+                    custom: () => {
+                        addLog("💳 Kept the current repayment pattern. No immediate change, but the interest meter keeps mattering.");
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function createCashDebtCoachEvent() {
+    return {
+        title: "Cash And Debt Strategy Check",
+        speaker: "Financial Coach",
+        avatar: "🧾",
+        tag: "MONEY COACH",
+        description: "You have enough liquid cash to change your debt picture. Keeping an emergency fund matters, but high-interest debt is also quietly charging you every month.",
+        literacy: "<strong>Opportunity Cost:</strong> Paying high-interest debt can be a guaranteed return because it removes future interest charges. The best answer still preserves enough cash for emergencies.",
+        choices: [
+            {
+                label: "Pay a focused chunk of high-interest debt from cash",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 0,
+                    happinessChange: 5,
+                    custom: (state) => {
+                        const payment = Math.min(state.debt, Math.max(1000, Math.round(state.wealth * 0.45)));
+                        state.wealth -= payment;
+                        state.debt -= payment;
+                        if (state.debt <= 0) state.debtInterestRate = 0.045;
+                        addLog(`🧾 Paid $${payment.toLocaleString()} from cash toward debt while keeping an emergency reserve.`, true);
+                    }
+                }
+            },
+            {
+                label: "Keep the cash buffer and set a slower payoff target",
+                effects: {
+                    cashChange: 0,
+                    debtIncrease: 0,
+                    healthChange: 0,
+                    happinessChange: 1,
+                    custom: () => {
+                        addLog("🧾 Kept a larger cash buffer. Safe for emergencies, but interest remains a drag to watch.");
+                    }
+                }
+            },
+            {
+                label: "Refinance first, then make smaller payments",
+                effects: {
+                    cashChange: -300,
+                    debtIncrease: 0,
+                    healthChange: 0,
+                    happinessChange: 3,
+                    custom: (state) => {
+                        state.debtInterestRate = Math.min(state.debtInterestRate, 0.085);
+                        addLog("🧾 Refinanced paperwork cost $300, but debt APR dropped to 8.5% for a more realistic payoff path.", true);
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function getCatchUpOpportunity() {
+    ensureCatchUpFlags();
+
+    if (!gameState.catchUpOffered.health && gameState.health < 35) {
+        gameState.catchUpOffered.health = true;
+        return createHealthCatchUpEvent();
+    }
+
+    if (!gameState.catchUpOffered.debt && gameState.debtInterestRate >= 0.15 && gameState.debt > 10000) {
+        gameState.catchUpOffered.debt = true;
+        return createDebtCatchUpEvent();
+    }
+
+    if (!gameState.catchUpOffered.cashDebt && gameState.debt > 0 && gameState.wealth > 10000 && gameState.wealth > gameState.debt * 0.4) {
+        gameState.catchUpOffered.cashDebt = true;
+        return createCashDebtCoachEvent();
+    }
+
+    return null;
+}
+
 // Dispatches a decision card if milestone matches
 function dispatchPendingChoice() {
     // 1. Check if an active choice card is currently visual to avoid overwrites
@@ -2129,6 +2325,12 @@ function dispatchPendingChoice() {
     if (match) {
         presentEventCard(match);
     } else {
+        const catchUpEvent = getCatchUpOpportunity();
+        if (catchUpEvent) {
+            presentEventCard(catchUpEvent);
+            return;
+        }
+
         // 3. Fallback conditional rates: 15% probability per season of random secondary life events
         const randomOccur = Math.random() < 0.15;
         if (randomOccur) {
@@ -2138,91 +2340,16 @@ function dispatchPendingChoice() {
     }
 }
 
-// Active decision countdown updater
-function updateDecisionCountdownVisual() {
-    const banner = document.getElementById("decision-countdown-banner");
-    const timeLeft = document.getElementById("decision-time-left");
+// Active decision milestone prompt updater
+function updateDecisionMilestoneVisual() {
+    const banner = document.getElementById("decision-milestone-banner");
+    const timeLeft = document.getElementById("decision-ready-label");
     if (!banner || !timeLeft || !gameState.currentEvent) return;
 
     banner.classList.remove("hidden");
-    timeLeft.textContent = `${gameState.currentEventRemainingSeasons} ${gameState.currentEventRemainingSeasons === 1 ? 'SEASON' : 'SEASONS'} LEFT`;
-    
-    if (gameState.currentEventRemainingSeasons <= 2) {
-        banner.className = "bg-rose-600/20 border border-rose-500/50 text-white font-bold p-3 rounded-2xl flex items-center justify-between text-xs animate-pulse";
-        timeLeft.className = "bg-rose-600 text-white font-extrabold px-2 py-0.5 rounded text-[10px]";
-    } else {
-        banner.className = "bg-rose-500/10 border border-rose-500/20 px-3 p-2.5 rounded-2xl flex items-center justify-between text-xs";
-        timeLeft.className = "bg-rose-500 text-white font-black px-2 py-0.5 rounded text-[10px]";
-    }
-}
-
-// Expire decision card when standard player hesitates and timer depletes
-function expireCurrentDecision() {
-    if (!gameState.currentEvent) return;
-    const event = gameState.currentEvent;
-    
-    const choiceIndex = 0; // default choices
-    const choice = event.choices[choiceIndex];
-    
-    addLog(`⏱️ <span class="text-rose-400 font-bold">DECISION EXPIRED!</span> You hesitated on standard options for "<strong>${event.title}</strong>"!`, true);
-    addLog(`⚠️ System selected default choice: <strong>${choice.label}</strong>. Hesitation stress cost you -5 Health and -5 Happiness.`);
-    
-    // Apply default choice effects with minor decay
-    let hpChg = -5;
-    let wtChg = 0;
-    let hpChgValue = -5;
-    
-    gameState.health = Math.max(0, Math.min(100, gameState.health - 5));
-    gameState.happiness = Math.max(0, Math.min(100, gameState.happiness - 5));
-    
-    if (choice.effects) {
-        if (choice.effects.healthChange !== undefined) {
-            gameState.health = Math.max(0, Math.min(100, gameState.health + choice.effects.healthChange));
-            hpChg += choice.effects.healthChange;
-        }
-        if (choice.effects.happinessChange !== undefined) {
-            gameState.happiness = Math.max(0, Math.min(100, gameState.happiness + choice.effects.happinessChange));
-            hpChgValue += choice.effects.happinessChange;
-        }
-        if (choice.effects.cashChange !== undefined) {
-            gameState.wealth += choice.effects.cashChange;
-            wtChg += choice.effects.cashChange;
-        }
-        if (choice.effects.debtIncrease !== undefined) {
-            gameState.debt += choice.effects.debtIncrease;
-            wtChg -= choice.effects.debtIncrease;
-        }
-        if (choice.effects.custom) {
-            choice.effects.custom(gameState);
-        }
-    }
-    
-    if (event.literacy) {
-        addLog(`<i class="fa-solid fa-graduation-cap text-teal-400"></i> ${event.literacy}`, true);
-    }
-    
-    flashStatChanges(hpChg, wtChg, hpChgValue);
-    
-    gameState.currentEvent = null;
-    
-    const eCard = document.getElementById("active-event-card");
-    const eFallback = document.getElementById("empty-queue-message");
-    const labelRemaining = document.getElementById("cards-remaining");
-    const banner = document.getElementById("decision-countdown-banner");
-    
-    if (banner) banner.classList.add("hidden");
-    
-    eCard.classList.add("opacity-0", "translate-y-2");
-    setTimeout(() => {
-        // remove from layout after animation to avoid empty space
-        eCard.style.display = "none";
-        eFallback.classList.remove("hidden");
-        labelRemaining.textContent = "No actions pending";
-        labelRemaining.classList.replace("bg-rose-500/10", "bg-slate-900");
-        labelRemaining.classList.replace("text-rose-400", "text-slate-400");
-        
-        updateHUD();
-    }, 200);   
+    timeLeft.textContent = "Choose when ready";
+    banner.className = "bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-xs transition duration-300";
+    timeLeft.className = "bg-slate-950 text-teal-200 border border-teal-500/20 font-black px-2 py-0.5 rounded-lg text-[9px] tracking-wide shadow text-right";
 }
 
 function getChoiceTeachingNote(choice, event) {
@@ -2362,22 +2489,21 @@ function getChoiceEffectsHTML(choice, event) {
 // Visual layout injector for interactive cards
 function presentEventCard(event) {
     if (!event) return;
-    
-    // We DO NOT pause simulation here anymore!
-    // The player's continuous tick is maintained, putting real-time friction and active flow!
-    
+
     gameState.currentEvent = event;
-    gameState.currentEventRemainingSeasons = 4; // 1 year budget
+    setPlayerLedWaitState("CHOICE READY");
     
-    // Let's make sure the countdown banner shows up
+    // Make sure the milestone banner shows up
     setTimeout(() => {
-        updateDecisionCountdownVisual();
+        updateDecisionMilestoneVisual();
     }, 50);
     
     // Load visuals details
     const eCard = document.getElementById("active-event-card");
     const eFallback = document.getElementById("empty-queue-message");
     const labelRemaining = document.getElementById("cards-remaining");
+    const banner = document.getElementById("decision-milestone-banner");
+    if (banner) banner.classList.add("hidden");
     
     document.getElementById("event-avatar").textContent = event.avatar || "👤";
     document.getElementById("event-speaker").textContent = event.speaker || "Speaker";
@@ -2423,8 +2549,8 @@ function presentEventCard(event) {
     eCard.style.transform = "none";
     
     labelRemaining.textContent = "1 Critical Decision Pending";
-    labelRemaining.classList.replace("bg-slate-900", "bg-rose-500/10");
-    labelRemaining.classList.replace("text-slate-400", "text-rose-400");
+    labelRemaining.classList.replace("bg-slate-900", "bg-teal-500/10");
+    labelRemaining.classList.replace("text-slate-400", "text-teal-300");
 
     // Smoothly scroll the card into view so players never miss active choices!
     setTimeout(() => {
@@ -2481,10 +2607,13 @@ function selectChoice(index) {
     
     // Clear and restore normal timelines
     gameState.currentEvent = null;
+    setPlayerLedWaitState("READY");
     
     const eCard = document.getElementById("active-event-card");
     const eFallback = document.getElementById("empty-queue-message");
     const labelRemaining = document.getElementById("cards-remaining");
+    const banner = document.getElementById("decision-milestone-banner");
+    if (banner) banner.classList.add("hidden");
     
     eCard.classList.add("opacity-0", "translate-y-2");
     setTimeout(() => {
@@ -2492,11 +2621,9 @@ function selectChoice(index) {
         eCard.style.display = "none";
         eFallback.classList.remove("hidden");
         labelRemaining.textContent = "No actions pending";
-        labelRemaining.classList.replace("bg-rose-500/10", "bg-slate-900");
-        labelRemaining.classList.replace("text-rose-400", "text-slate-400");
+        labelRemaining.classList.replace("bg-teal-500/10", "bg-slate-900");
+        labelRemaining.classList.replace("text-teal-300", "text-slate-400");
         
-        // Auto resume fast progress
-        resumeSimulation();
         updateHUD();
     }, 200);   
 }
@@ -2613,9 +2740,26 @@ function endGameRetirement(reason) {
     
     toggleModal("modal-retirement", true);
 }
-
-
 // Simulation Core Controls 
+function setPlayerLedWaitState(label = "READY") {
+    gameState.isPaused = true;
+    clearInterval(gameState.tickerIntervalId);
+    gameState.tickerIntervalId = null;
+
+    const cpPause = document.getElementById("btn-cockpit-pause");
+    const cpPlay = document.getElementById("btn-cockpit-normal");
+    const cpFast = document.getElementById("btn-cockpit-fast");
+    const cpStatus = document.getElementById("engine-status-text");
+
+    if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
+    if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
+    if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
+    if (cpStatus) {
+        cpStatus.textContent = label;
+        cpStatus.className = "text-teal-400 font-extrabold";
+    }
+}
+
 function pauseSimulation() {
     gameState.isPaused = true;
     clearInterval(gameState.tickerIntervalId);
@@ -2634,16 +2778,22 @@ function pauseSimulation() {
     const cpFast = document.getElementById("btn-cockpit-fast");
     const cpStatus = document.getElementById("engine-status-text");
 
-    if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-rose-400 bg-rose-500/10 border border-rose-500/20 shadow-md transition scale-95 duration-150";
+    if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 shadow-md transition scale-95 duration-150";
     if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
     if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
     if (cpStatus) {
         cpStatus.textContent = "PAUSED";
-        cpStatus.className = "text-rose-400 font-extrabold";
+        cpStatus.className = "text-amber-300 font-extrabold";
     }
 }
 
 function startSimulation(speedMs) {
+    if (gameState.currentEvent !== null) {
+        updateDecisionMilestoneVisual();
+        setPlayerLedWaitState("CHOICE READY");
+        return;
+    }
+
     if (gameState.tickerIntervalId && gameState.tickerSpeed === speedMs && !gameState.isPaused) return;
     
     // Clear past interval timers
@@ -2702,9 +2852,9 @@ function resumeSimulation() {
 
 // User-driven manual season tick (when paused)
 function forceManualTick() {
-    tickSeason();
+    tickSeason(true);
     if (gameState.currentEvent === null) {
-        pauseSimulation(); // lock paused state unless card popped
+        setPlayerLedWaitState("READY");
     }
 }
 
@@ -2748,6 +2898,8 @@ function restartGame() {
         sportsCarTimer: 0,
         burnoutGrace: false,
         hasSideHustle: false,
+        healthCrisisSeasons: 0,
+        catchUpOffered: { health: false, debt: false, cashDebt: false },
         isPaused: true, // start paused
         tickerSpeed: 3000,
         tickerIntervalId: null,
@@ -2801,5 +2953,5 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Start screen actions
     restartGame();
-    pauseSimulation(); // wait for start click or options Choice A click on index.html
+    setPlayerLedWaitState("CHOICE READY");
 });
