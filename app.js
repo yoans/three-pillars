@@ -427,7 +427,7 @@ function showTurnGuide() {
     if (gameState.currentEvent) {
         setGuidePanel(
             "Next Step",
-            `Choose one option on the active life moment. Compare the badges, then check the mechanics box for monthly cashflow, debt APR, and net-worth target. Current cashflow: <strong>${netFlowText}/mo</strong>.`,
+            `Choose one option on the active life moment. Compare cash cost, new debt, and pillar changes. If a cost is bigger than your cash balance, the shortfall goes onto credit. Current cashflow: <strong>${netFlowText}/mo</strong>.`,
             "fa-list-check",
             "teal"
         );
@@ -595,7 +595,7 @@ function toggleDiagnosticPanel(pillarName) {
         desc.innerHTML = `
             <strong class="text-amber-500">COMPOUNDING FINANCIAL NET WORTH:</strong><br>
             Current Net Worth: <span class="font-extrabold text-emerald-400">$${netWorth.toLocaleString()}</span> (Cash: $${gameState.wealth.toLocaleString()} | Stocks: $${gameState.portfolio.toLocaleString()}).<br>
-            <span class="text-slate-400 font-medium">Debt balance: <span class="text-rose-400 font-bold">$${gameState.debt.toLocaleString()}</span>. If cash drops below zero, the shortfall moves to 19.8% credit debt. Compare that APR against the 8% stock return before deciding whether to invest or pay debt.</span>
+            <span class="text-slate-400 font-medium">Debt balance: <span class="text-rose-400 font-bold">$${gameState.debt.toLocaleString()}</span>. If costs push your cash balance below $0, the shortfall moves to 19.8% credit-card debt. Compare that APR against the 8% stock return before deciding whether to invest or pay debt.</span>
         `;
     } else if (pillarName === 'happiness') {
         if (drawerIconContainer) {
@@ -841,6 +841,18 @@ function getCurrentNetWorth() {
     return gameState.wealth + gameState.portfolio - gameState.debt;
 }
 
+function convertCashShortfallToCredit(sourceLabel) {
+    if (gameState.wealth >= 0) return 0;
+
+    const shortfall = Math.ceil(Math.abs(gameState.wealth));
+    gameState.debt += shortfall;
+    gameState.wealth = 0;
+    gameState.debtInterestRate = 0.198;
+
+    addLog(`💳 <span class="text-amber-300 font-black uppercase">Credit used:</span> ${sourceLabel} pushed your cash balance <span class="text-amber-300 font-bold">$${shortfall.toLocaleString()}</span> below $0. That shortfall was covered by high-interest credit-card debt at <span class="text-amber-300 font-black">19.8%</span> APR.`, true);
+    return shortfall;
+}
+
 function getMonthlyCashFlowSnapshot(state = gameState) {
     const stockMonthlyRate = Math.round((state.portfolio || 0) * (state.portfolioYieldRate / 12));
     const savingMonthlyRate = state.wealth > 0 ? Math.round((state.wealth || 0) * (state.savingsYieldRate / 12)) : 0;
@@ -884,7 +896,7 @@ function getDecisionRuleText(event) {
     if (tag.includes("social") || tag.includes("spending")) {
         return "Joy matters, but repeating costs and credit-funded fun become long-term payment drag.";
     }
-        return "Cash below zero converts into high-interest credit debt at 19.8% APR, while high health and joy keep options open.";
+    return "If choices or seasonal bills push your cash balance below $0, the shortfall becomes high-interest credit-card debt at 19.8% APR.";
 }
 
 function getDecisionMechanicsHTML(event) {
@@ -918,7 +930,7 @@ function getDecisionMechanicsHTML(event) {
             </div>
         </div>
         <div class="mt-2 text-[9.5px] text-slate-400 leading-snug">
-            Mechanics to watch: empty cash becomes 19.8% credit debt, debt above $25k drains joy, health below 30 cuts income by 15%, and health over 85 adds a 5% focus bonus.
+            Mechanics to watch: choice costs and seasonal bills hit cash first. If your cash balance drops below $0, only the shortfall becomes 19.8% credit-card debt. Debt above $25k drains joy, health below 30 cuts income by 15%, and health over 85 adds a 5% focus bonus.
         </div>
     `;
 }
@@ -2079,19 +2091,10 @@ function tickSeason(forceAdvance = false) {
     const netCurrentTally = quarterlyGrossSalary - quarterlyOutflows;
     gameState.wealth += netCurrentTally;
 
-    // OVERSPENDING / BANKRUPTCY EMERGENCY DEBT CHECK (CRITICAL LITERACY LESSON)
-    if (gameState.wealth < 0) {
-        // Any negative liquid cash transfers into high-interest credit card debt.
-        const CC_DebtAccum = Math.abs(gameState.wealth);
-        gameState.debt += CC_DebtAccum;
-        gameState.wealth = 0; // cash resets to empty
-        
-        // Credit-card balances are costly, but catch-up opportunities can help players recover.
-        gameState.debtInterestRate = 0.198;
-        
-        addLog(`💳 <span class="text-amber-300 font-black uppercase">Credit line used:</span> Empty cash moved <span class="text-amber-300 font-bold">$${CC_DebtAccum.toLocaleString()}</span> onto high-interest credit at <span class="text-amber-300 font-black">19.8%</span>. Watch for a catch-up option.`, true);
-        
-        // Major Happiness penalty from debt spiral stress
+    // Seasonal cash shortfall check
+    const seasonalShortfall = convertCashShortfallToCredit("This season's income, bills, and care costs");
+    if (seasonalShortfall > 0) {
+        addLog(`🧭 Watch for a catch-up option, or use Budget/Assets before advancing another season.`, true);
         gameState.happiness = Math.max(0, gameState.happiness - 10);
     }
 
@@ -2521,6 +2524,10 @@ function getChoiceEffectsHTML(choice, event) {
                 badges.push(`<span class="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-extrabold"><i class="fa-solid fa-wallet"></i> +$${choice.effects.cashChange.toLocaleString()} Cash</span>`);
             } else {
                 badges.push(`<span class="inline-flex items-center gap-1 bg-rose-500/15 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-extrabold"><i class="fa-solid fa-wallet"></i> -$${Math.abs(choice.effects.cashChange).toLocaleString()} Cash</span>`);
+                const projectedShortfall = Math.max(0, Math.abs(choice.effects.cashChange) - Math.max(0, gameState.wealth));
+                if (projectedShortfall > 0) {
+                    badges.push(`<span class="inline-flex items-center gap-1 bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded text-[10px] font-extrabold"><i class="fa-solid fa-credit-card"></i> $${projectedShortfall.toLocaleString()} Shortfall to Credit</span>`);
+                }
             }
         }
         
@@ -2684,6 +2691,11 @@ function selectChoice(index) {
         if (choice.effects.custom) {
             choice.effects.custom(gameState);
         }
+    }
+
+    const choiceShortfall = convertCashShortfallToCredit(`Your choice "${choice.label}"`);
+    if (choiceShortfall > 0) {
+        addLog(`🧾 Cause: the choice cost was larger than your available cash, so only the uncovered amount became credit-card debt.`, true);
     }
     
     // Log choice literacy info into journal
