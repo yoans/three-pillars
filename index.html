@@ -58,7 +58,7 @@
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
                                     <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-teal-500"></span>
                                 </span>
-                                Engine: <span id="engine-status-text" class="text-teal-300 font-extrabold uppercase">READY</span>
+                                Turn: <span id="engine-status-text" class="text-teal-300 font-extrabold uppercase">READY</span>
                             </div>
                         </div>
                     </div>
@@ -70,33 +70,12 @@
                     </div>
                 </div>
 
-                <!-- Clock / Speed Commands center in header -->
+                <!-- Turn command center in header -->
                 <div class="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-start">
-                    <!-- Standard Clock Speeds -->
-                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-855 shadow-inner">
-                        <button id="btn-cockpit-pause" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 shadow-md transition scale-95 duration-100">
-                            <i class="fa-solid fa-pause"></i> PAUSE
-                        </button>
-                        <button id="btn-cockpit-normal" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-105">
-                            <i class="fa-solid fa-play"></i> RUN
-                        </button>
-                        <button id="btn-cockpit-fast" class="px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-105">
-                            <i class="fa-solid fa-angles-right"></i> FAST
-                        </button>
-                    </div>
-
-                    <!-- Manual Step Next Season button -->
-                    <button id="btn-force-season" onclick="forceManualTick()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-extrabold border border-indigo-500/30 transition active:scale-95 flex items-center gap-1 shadow-md shrink-0">
-                        <i class="fa-solid fa-forward-step"></i> STEP
+                    <!-- Manual Next Season button -->
+                    <button id="btn-force-season" class="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-black border border-teal-300/30 transition active:scale-95 flex items-center gap-1.5 shadow-md shadow-teal-500/15 shrink-0 uppercase tracking-wide">
+                        <i class="fa-solid fa-forward-step"></i> Next Season
                     </button>
-
-                    <!-- Hidden legacy speed buttons to preserve app.js DOM hook event listeners without errors -->
-                    <div class="hidden">
-                        <button id="btn-pause"></button>
-                        <button id="btn-play-normal"></button>
-                        <button id="btn-play-fast"></button>
-                        <button id="btn-cockpit-step"></button>
-                    </div>
 
                     <!-- Guide & Restart Shortcuts -->
                     <div class="flex items-center gap-1 shrink-0">
@@ -115,12 +94,12 @@
         <div class="bg-slate-950/80 border-t border-slate-900 px-4 py-2 text-xs">
             <div class="max-w-2xl mx-auto grid grid-cols-1 gap-1.5">
                 <!-- Age & Net Worth standard core dashboard indicators -->
-                <div class="grid grid-cols-2 gap-1.5">
-                    <div class="min-w-0 flex items-center justify-between gap-2 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px]">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="min-w-0 inline-flex items-center gap-1.5 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px]">
                         <span class="text-slate-500 font-extrabold text-[8px] uppercase tracking-wider">Age</span>
                         <span id="player-age" class="font-extrabold text-white tabular-nums">18.00</span>
                     </div>
-                    <div class="min-w-0 flex items-center justify-between gap-2 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px] font-mono">
+                    <div class="min-w-0 inline-flex items-center gap-1.5 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px] font-mono">
                         <span class="text-slate-500 font-extrabold text-[8px] uppercase tracking-wider font-sans">Net</span>
                         <span id="hud-net-worth" class="font-black text-emerald-400 truncate">$5,000</span>
                     </div>
@@ -159,12 +138,16 @@
                     <div id="visual-character" class="min-w-0 flex items-center justify-between gap-1.5 bg-slate-900/80 hover:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 text-[10px] cursor-help" onclick="triggerCharacterDialogue()">
                         <span class="flex items-center gap-1.5 min-w-0">
                             <span class="lifestyle-emoji text-xs leading-none animate-character flex-none">🧑‍🎓</span>
-                            <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider truncate">Habits</span>
+                            <span class="min-w-0 flex flex-col leading-tight">
+                                <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider truncate">Habits</span>
+                                <span id="habit-summary-label" class="font-bold text-violet-300 truncate">0 active · $0/mo</span>
+                            </span>
                         </span>
-                        <div class="flex gap-0.5 items-center bg-slate-950 py-0.5 px-1.5 rounded-lg border border-slate-800 flex-none">
+                        <div class="flex gap-0.5 items-center bg-slate-950 py-0.5 px-1.5 rounded-lg border border-slate-800 flex-none" id="habit-icons-wrap" title="Open Budget to change habits">
                             <span id="active-habits-1" class="text-[9px] opacity-30 grayscale leading-none" title="Nutrition">🥗</span>
                             <span id="active-habits-3" class="text-[9px] opacity-30 grayscale leading-none" title="Socialization">👥</span>
                             <span id="active-habits-2" class="text-[9px] opacity-30 grayscale leading-none" title="Fitness">🏋️</span>
+                            <span id="active-habits-4" class="text-[9px] opacity-30 grayscale leading-none" title="Comfort">📺</span>
                         </div>
                     </div>
                 </div>
@@ -191,7 +174,7 @@
             <span id="guide-panel-icon" class="text-indigo-400 mt-0.5 flex-none"><i class="fa-solid fa-scale-balanced"></i></span>
             <div class="flex-1 min-w-0 text-[11px] text-indigo-200 leading-normal">
                 <div id="guide-panel-title" class="text-[9px] uppercase tracking-widest font-black text-indigo-300 mb-0.5">Rulebook</div>
-                <div id="guide-panel-text" class="leading-relaxed">Empty cash becomes high-interest credit debt, health below 30 cuts earning power, and joy below 0 forces a costly recovery season. Every choice moves at least one hidden lever.</div>
+                <div id="guide-panel-text" class="leading-relaxed">Choose the active life moment first. When no choice is pending, press <strong>Next Season</strong>. Open Budget to adjust recurring habits before advancing.</div>
             </div>
         </div>
 
@@ -278,11 +261,11 @@
         </nav>
 
         <!-- ================= SECTION: DYNAMIC SELECTED TAB VIEW AREA (EXPANDABLE) ================= -->
-        <section class="bg-slate-900/60 border border-slate-900 rounded-3xl p-4 min-h-[360px] h-auto shadow-2xl flex flex-col justify-between">
+        <section class="bg-slate-900/60 border border-slate-900 rounded-3xl p-4 min-h-[360px] h-auto shadow-2xl flex flex-col">
             
             <!-- ====== TAB 1: DECISIONS (DEFAULT DETAILED ACTIVE PANEL - AUTO EXPANDABLE) ====== -->
-            <div id="tab-decisions" class="tab-pane flex flex-col gap-4">
-                <div id="active-event-card" class="flex-1 flex flex-col justify-between gap-4 select-none opacity-0 translate-y-2 transition-all duration-300">
+            <div id="tab-decisions" class="tab-pane flex flex-col gap-4 min-w-0">
+                <div id="active-event-card" class="w-full flex flex-col gap-4 select-none opacity-0 translate-y-2 transition-all duration-300 min-w-0">
                     
                     <!-- Player-led milestone banner -->
                     <div id="decision-milestone-banner" class="hidden bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-xs transition duration-300">
@@ -306,7 +289,7 @@
                     </div>
 
                     <!-- Literacy Advice Information box -->
-                    <div id="literacy-helper" class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3 flex gap-2.5 items-start text-xs">
+                    <div id="literacy-helper" class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3 flex gap-2.5 items-start text-xs min-w-0">
                         <span class="text-indigo-400 mt-1"><i class="fa-solid fa-graduation-cap"></i></span>
                         <div class="flex-1 text-[11px] text-indigo-200 leading-normal" id="event-literacy">
                             <strong>Human Capital:</strong> Higher skills increase income thresholds.
@@ -314,12 +297,12 @@
                     </div>
 
                     <!-- Exposed mechanics snapshot for the active decision -->
-                    <div id="decision-mechanics-panel" class="bg-slate-950/55 border border-slate-800 rounded-2xl p-3 text-[10px] text-slate-300 leading-normal">
+                    <div id="decision-mechanics-panel" class="bg-slate-950/55 border border-slate-800 rounded-2xl p-3 text-[10px] text-slate-300 leading-normal min-w-0 overflow-hidden">
                         <!-- Filled by app.js -->
                     </div>
 
                     <!-- Injected Choice Action trigger buttons - EXPANDS AUTOMATICALLY -->
-                    <div class="flex flex-col gap-2.5" id="event-choices-container">
+                    <div class="flex flex-col gap-2.5 min-w-0" id="event-choices-container">
                         <!-- Filled by app.js -->
                     </div>
                 </div>
@@ -392,7 +375,7 @@
                             <span id="budget-health" class="font-bold text-slate-300">-$0 /mo</span>
                         </div>
                         <div class="flex justify-between items-center text-xs">
-                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Over-The-Top Subs</span>
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Comfort & Outings</span>
                             <span id="budget-social" class="font-bold text-slate-300">-$0 /mo</span>
                         </div>
                     </div>
@@ -422,7 +405,7 @@
                                 <span id="gym-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
                             </div>
                             <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
-                                <span>$60/mo health engine</span>
+                                <span>$60/mo · +2 health/season · +1 joy</span>
                                 <button id="toggle-gym-btn" onclick="toggleGymHabit()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition">Join</button>
                             </div>
                         </div>
@@ -432,7 +415,7 @@
                                 <span id="organic-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
                             </div>
                             <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
-                                <span>+$300/mo nutrition</span>
+                                <span>$300/mo · +1.5 health/season · +0.75 joy</span>
                                 <button id="toggle-organic-btn" onclick="toggleOrganicFood()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition">Set Up</button>
                             </div>
                         </div>
@@ -442,7 +425,7 @@
                                 <span id="streaming-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
                             </div>
                             <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
-                                <span>$15/mo low joy drip</span>
+                                <span>$15/mo · small recurring comfort boost</span>
                                 <button id="toggle-streaming-btn" onclick="toggleLuxuryStreaming()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition">Activate</button>
                             </div>
                         </div>
@@ -452,7 +435,7 @@
                                 <span id="roadtrip-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
                             </div>
                             <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
-                                <span>$100/mo social recovery</span>
+                                <span>$100/mo · +4 joy/season social recovery</span>
                                 <button id="toggle-roadtrip-btn" onclick="toggleRoadtrips()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition">Plan</button>
                             </div>
                         </div>
@@ -504,28 +487,28 @@
                     <div class="bg-slate-955/80 border border-slate-900 rounded-2xl p-4 flex flex-col gap-2">
                         <div class="flex justify-between items-center">
                             <span class="text-[10px] text-rose-455 font-black uppercase tracking-widest flex items-center gap-1">
-                                <i class="fa-solid fa-building-columns text-rose-555"></i> Toxic Consolidated Liabilities
+                                <i class="fa-solid fa-building-columns text-rose-555"></i> Debt Balance
                             </span>
-                            <span id="asset-debt" class="text-base font-black text-rose-450 font-mono">-$15,000</span>
+                            <span id="asset-debt" class="text-base font-black text-rose-450 font-mono">-$0</span>
                         </div>
                         <p class="text-[8.5px] text-slate-500 leading-normal">
-                            High interest compounding liabilities. Credit Card loan interest rates are <strong class="text-rose-400">-4.5%</strong>. Sinks your happiness as balances climb. Pay off immediately!
+                            This balance charges interest each season. Student-rate debt starts low; cash shortfalls can push the APR to high-interest credit. If APR is above your expected investment return, debt payoff may be the stronger move.
                         </p>
                         <button onclick="interactWealth('pay_debt', 1000)" class="w-full text-[10px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 py-2.5 rounded-lg font-black uppercase tracking-wider transition active:scale-95 text-center">
-                            Paydown $1,000 Outstanding Debt
+                            Pay Down $1,000 Debt
                         </button>
                     </div>
                 </div>
 
                 <!-- Tiny Compounding info notes -->
                 <div class="bg-indigo-950/15 border border-indigo-900/30 rounded-2xl p-3 text-[9px] text-indigo-300 leading-relaxed mt-3 shrink-0">
-                    <strong>Compounding Equation:</strong> True net worth equals growing investments subtracting compounding debts. Focus on building assets that compound to earn financial independence!
+                    <strong>How to read this tab:</strong> Cash is your emergency buffer, stocks grow at the long-term return rate, and debt charges interest every season. If debt APR is higher than your stock return, paying debt is often the stronger move.
                 </div>
             </div>
 
             <!-- ====== TAB 4: VISUAL GRAPH PLOT ====== -->
             <div id="tab-history" class="tab-pane hidden flex flex-col gap-3 h-full">
-                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Historical Pillars Path ($ over time)</span>
+                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Historical Pillar Scores (0-100 scale)</span>
                 
                 <!-- SVG Vector Plot Canvas -->
                 <div class="relative bg-slate-950 border border-slate-900 rounded-2xl p-3.5 flex-1 flex flex-col min-h-[220px]">

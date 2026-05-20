@@ -14,7 +14,7 @@ let gameState = {
     
     // Financial Portfolios
     portfolio: 0, // Stocks/Investments
-    debt: 15000,   // High-interest liabilities start: e.g. student loan/credit card
+    debt: 0,   // Education and lifestyle choices create debt during play
     
     // Recurring Monthly Income & Expenses (multiplied by 3 for season ticks)
     salary: 500, // starting part-time
@@ -38,6 +38,7 @@ let gameState = {
         gym: false,
         organicFood: false,
         social: false,
+        streaming: false,
         four01k: false
     },
     
@@ -250,39 +251,7 @@ function updateVisualScenery() {
         setTimeout(() => chatBubble.style.opacity = 0, 5000);
     }
 
-    // Apply active habit indicator grayscale status
-    const nutritionHabit = document.getElementById("active-habits-1");
-    if (nutritionHabit) {
-        if (gameState.activeHabits.organicFood) {
-            nutritionHabit.classList.remove("opacity-30", "grayscale");
-            nutritionHabit.classList.add("opacity-100 animate-pulse");
-        } else {
-            nutritionHabit.classList.add("opacity-30", "grayscale");
-            nutritionHabit.classList.remove("opacity-100", "animate-pulse");
-        }
-    }
-
-    const fitnessHabit = document.getElementById("active-habits-2");
-    if (fitnessHabit) {
-        if (gameState.activeHabits.gym) {
-            fitnessHabit.classList.remove("opacity-30", "grayscale");
-            fitnessHabit.classList.add("opacity-100");
-        } else {
-            fitnessHabit.classList.add("opacity-30", "grayscale");
-            fitnessHabit.classList.remove("opacity-100");
-        }
-    }
-
-    const socialHabit = document.getElementById("active-habits-3");
-    if (socialHabit) {
-        if (gameState.activeHabits.social) {
-            socialHabit.classList.remove("opacity-30", "grayscale");
-            socialHabit.classList.add("opacity-100");
-        } else {
-            socialHabit.classList.add("opacity-30", "grayscale");
-            socialHabit.classList.remove("opacity-100");
-        }
-    }
+    updateHabitHeaderSummary();
 
     // Update banner details
     const lifeBanner = document.getElementById("life-banner");
@@ -369,6 +338,114 @@ function flashStatChanges(healthDiff, wealthDiff, happinessDiff) {
     }
 }
 
+function getHabitSnapshot(state = gameState) {
+    if (!state.activeHabits) state.activeHabits = {};
+
+    const habits = [
+        {
+            id: "active-habits-1",
+            active: !!state.activeHabits.organicFood,
+            label: "Whole-food prep",
+            shortLabel: "Food",
+            cost: 300,
+            effect: "+1.5 health/season, +0.75 joy"
+        },
+        {
+            id: "active-habits-2",
+            active: !!state.activeHabits.gym,
+            label: "Gym program",
+            shortLabel: "Gym",
+            cost: 60,
+            effect: "+2 health/season, +1 joy"
+        },
+        {
+            id: "active-habits-3",
+            active: !!state.activeHabits.social,
+            label: "Weekend outings",
+            shortLabel: "Outings",
+            cost: 100,
+            effect: "+4 joy/season"
+        },
+        {
+            id: "active-habits-4",
+            active: !!state.activeHabits.streaming,
+            label: "Streaming comfort",
+            shortLabel: "Streaming",
+            cost: 15,
+            effect: "+0.75 joy/season"
+        }
+    ];
+
+    const active = habits.filter(habit => habit.active);
+    const monthlyCost = active.reduce((sum, habit) => sum + habit.cost, 0);
+    return { habits, active, monthlyCost };
+}
+
+function setHabitIconState(icon, active, title) {
+    if (!icon) return;
+    icon.title = title;
+    if (active) {
+        icon.classList.remove("opacity-30", "grayscale");
+        icon.classList.add("opacity-100");
+    } else {
+        icon.classList.add("opacity-30", "grayscale");
+        icon.classList.remove("opacity-100");
+    }
+}
+
+function updateHabitHeaderSummary() {
+    const snapshot = getHabitSnapshot();
+    const label = document.getElementById("habit-summary-label");
+    const wrap = document.getElementById("habit-icons-wrap");
+
+    snapshot.habits.forEach(habit => {
+        setHabitIconState(
+            document.getElementById(habit.id),
+            habit.active,
+            `${habit.label}: ${habit.active ? "active" : "inactive"}. ${habit.cost > 0 ? `$${habit.cost}/mo. ` : ""}${habit.effect}`
+        );
+    });
+
+    if (label) {
+        label.textContent = snapshot.active.length > 0
+            ? `${snapshot.active.length} active · $${snapshot.monthlyCost}/mo`
+            : "0 active · open Budget";
+    }
+
+    if (wrap) {
+        wrap.title = snapshot.active.length > 0
+            ? snapshot.active.map(habit => `${habit.shortLabel}: ${habit.effect}`).join(" | ")
+            : "No recurring habits active. Open Budget to add recovery habits before advancing.";
+    }
+}
+
+function showTurnGuide() {
+    const monthlyFlow = getMonthlyCashFlowSnapshot();
+    const snapshot = getHabitSnapshot();
+    const netFlowText = formatMoney(monthlyFlow.netFlow, true);
+
+    if (gameState.currentEvent) {
+        setGuidePanel(
+            "Next Step",
+            `Choose one option on the active life moment. Compare the badges, then check the mechanics box for monthly cashflow, debt APR, and net-worth target. Current cashflow: <strong>${netFlowText}/mo</strong>.`,
+            "fa-list-check",
+            "teal"
+        );
+        return;
+    }
+
+    const habitHint = snapshot.active.length > 0
+        ? `Habits active: <strong>${snapshot.active.map(habit => habit.shortLabel).join(", ")}</strong> costing <strong>$${snapshot.monthlyCost}/mo</strong>.`
+        : "No habits are active. Open Budget if health or joy is slipping before you advance.";
+
+    setGuidePanel(
+        "Next Step",
+        `No choice is pending. Review Budget if you want to adjust recurring costs, then press <strong>Next Season</strong> in the header. ${habitHint} Current cashflow: <strong>${netFlowText}/mo</strong>.`,
+        "fa-forward-step",
+        "indigo"
+    );
+}
+
 function setGuidePanel(title, html, iconClass = "fa-circle-info", tone = "indigo") {
     const panel = document.getElementById("chat-toast-notifications");
     const iconSlot = document.getElementById("guide-panel-icon");
@@ -395,12 +472,7 @@ function setGuidePanel(title, html, iconClass = "fa-circle-info", tone = "indigo
 }
 
 function showRulebookDefault() {
-    setGuidePanel(
-        "Rulebook",
-        "Empty cash becomes high-interest credit debt. Health below 30 cuts earning power. Joy at zero forces a costly recovery season. Every choice moves at least one hidden lever.",
-        "fa-scale-balanced",
-        "indigo"
-    );
+    showTurnGuide();
 }
 
 function updateJournalBadge() {
@@ -511,7 +583,7 @@ function toggleDiagnosticPanel(pillarName) {
         desc.innerHTML = `
             <strong class="text-emerald-400">PHYSICAL & BIOLOGICAL HUMAN CAPITAL:</strong><br>
             Current Health score: <span class="font-extrabold text-white">${gameState.health}/100</span>.<br>
-            <span class="text-slate-400">Your health acts as your main daily multiplier. Keep it high to prevent medical emergencies (-$1,500) or severe physical fatigue. Activate gym memberships or select organic routines to offset natural decay!</span>
+            <span class="text-slate-400">Health drifts down slightly each season. Below 30, income is reduced by 15% and occasional $750 care costs can appear. Gym and whole-food habits offset that drift before it becomes a crisis.</span>
         `;
     } else if (pillarName === 'wealth') {
         if (drawerIconContainer) {
@@ -523,7 +595,7 @@ function toggleDiagnosticPanel(pillarName) {
         desc.innerHTML = `
             <strong class="text-amber-500">COMPOUNDING FINANCIAL NET WORTH:</strong><br>
             Current Net Worth: <span class="font-extrabold text-emerald-400">$${netWorth.toLocaleString()}</span> (Cash: $${gameState.wealth.toLocaleString()} | Stocks: $${gameState.portfolio.toLocaleString()}).<br>
-            <span class="text-slate-400 font-medium">Unsecured CC Debts: <span class="text-rose-400 font-bold">$${gameState.debt.toLocaleString()}</span>. Sinking CC APR spikes when cash is negative. Pay down debts or invest cash to compound high passive stock yields (avg 8.0%)!</span>
+            <span class="text-slate-400 font-medium">Debt balance: <span class="text-rose-400 font-bold">$${gameState.debt.toLocaleString()}</span>. If cash drops below zero, the shortfall moves to 19.8% credit debt. Compare that APR against the 8% stock return before deciding whether to invest or pay debt.</span>
         `;
     } else if (pillarName === 'happiness') {
         if (drawerIconContainer) {
@@ -534,7 +606,7 @@ function toggleDiagnosticPanel(pillarName) {
         desc.innerHTML = `
             <strong class="text-violet-400">JOY, COMFORT & MENTAL HEALTH:</strong><br>
             Current Happiness: <span class="font-extrabold text-white">${gameState.happiness}/100</span>.<br>
-            <span class="text-slate-400">Joy compounds mental clarity, lowering daily professional burnout events. Indulge in Streaming services (+1 / Season) or roadtrips (+4 / Season). Take a moment to rest and prevent critical career stress!</span>
+            <span class="text-slate-400">Joy falls slowly each season and debt stress can drag it lower. Streaming gives a small comfort boost; weekend outings give a larger social recovery boost but cost more every month.</span>
         `;
     }
 }
@@ -573,12 +645,16 @@ function triggerSceneDialogue(type) {
         iconClass = "fa-briefcase";
         tone = "amber";
         const workLabel = document.getElementById("work-status-label")?.textContent || gameState.activeCareer.replace('_',' ');
-        responseText = `<strong>${workLabel}</strong> earns <strong>$${gameState.salary.toLocaleString()}/mo</strong>. Current net cashflow is <strong>${formatMoney(monthlyFlow.netFlow, true)}/mo</strong>. Career choices raise income ceilings, but low health can cut pay by 25%.`;
+        responseText = `<strong>${workLabel}</strong> earns <strong>$${gameState.salary.toLocaleString()}/mo</strong>. Current net cashflow is <strong>${formatMoney(monthlyFlow.netFlow, true)}/mo</strong>. Career choices raise income ceilings, but health below 30 cuts pay by 15%.`;
     } else if (type === "habits") {
         title = "Habit Subscriptions";
         iconClass = "fa-heart-pulse";
         tone = "violet";
-        responseText = `Habits are recurring purchases with biological returns. Gym is <strong>${gameState.activeHabits.gym ? "active" : "inactive"}</strong>, whole-food prep is <strong>${gameState.activeHabits.organicFood ? "active" : "inactive"}</strong>, and outings are <strong>${gameState.activeHabits.social ? "active" : "inactive"}</strong>. Active recovery can keep health and joy high enough to avoid expensive crisis events.`;
+        const snapshot = getHabitSnapshot();
+        const activeText = snapshot.active.length > 0
+            ? snapshot.active.map(habit => `<strong>${habit.shortLabel}</strong> (${habit.effect}, $${habit.cost}/mo)`).join("; ")
+            : "No recurring habits are active.";
+        responseText = `${activeText}<br><span class="text-slate-400">Use the Budget tab to turn habits on or off before pressing Next Season. Total active habit cost: <strong>$${snapshot.monthlyCost}/mo</strong>.</span>`;
     }
     
     setGuidePanel(title, responseText, iconClass, tone);
@@ -644,10 +720,14 @@ function toggleOrganicFood() {
 
 // Toggle Luxury Streaming Comfort
 function toggleLuxuryStreaming() {
-    if (gameState.subscriptionCost >= 15) {
-        gameState.subscriptionCost -= 15;
+    if (!gameState.activeHabits) gameState.activeHabits = {};
+
+    if (gameState.activeHabits.streaming) {
+        gameState.activeHabits.streaming = false;
+        gameState.subscriptionCost = Math.max(0, gameState.subscriptionCost - 15);
         addLog("Cancelled Premium Streaming service subscriptions (-$15/mo saved).");
     } else {
+        gameState.activeHabits.streaming = true;
         gameState.subscriptionCost += 15;
         addLog("Subscribed to Premium Over-the-Top Streaming networks (-$15/mo). Gradual joy accumulator.");
     }
@@ -658,7 +738,7 @@ function toggleLuxuryStreaming() {
 function toggleRoadtrips() {
     if (gameState.activeHabits.social) {
         gameState.activeHabits.social = false;
-        gameState.subscriptionCost -= 100;
+        gameState.subscriptionCost = Math.max(0, gameState.subscriptionCost - 100);
         addLog("Suspended weekend Sabbaticals & Roadtrips outings.");
     } else {
         gameState.activeHabits.social = true;
@@ -731,7 +811,6 @@ function interactWealth(action, amount) {
             gameState.debt -= paymentAmount;
             addLog(`Paid down <span class="text-emerald-400 font-bold">$${paymentAmount.toLocaleString()}</span> of outstanding liabilities. Debt remaining: <span class="text-rose-400 font-bold">-$${gameState.debt.toLocaleString()}</span>.`);
             
-            // Re-evaluate debt rates when CC-debt gets repaid
             if (gameState.debt <= 0) {
                 gameState.debt = 0;
                 addLog(`🎉 <span class="text-emerald-400 font-bold uppercase">Debt Free Achievement unlocked!</span> Interest drain halts completely. happiness +10!`);
@@ -797,7 +876,7 @@ function getDecisionRuleText(event) {
         return "Depreciating purchases can raise joy now while adding monthly pressure and reducing investable cash.";
     }
     if (tag.includes("health") || tag.includes("wellness") || tag.includes("nutrition")) {
-        return "Health below 30 cuts salary by 25% and can trigger medical bills. Health spending can be productive capital.";
+        return "Health below 30 cuts salary by 15% and can trigger care costs. Health spending can be productive capital.";
     }
     if (tag.includes("investment") || tag.includes("wealth")) {
         return "Investments compound quietly, debt compounds against you, and panic selling can lock in losses.";
@@ -805,7 +884,7 @@ function getDecisionRuleText(event) {
     if (tag.includes("social") || tag.includes("spending")) {
         return "Joy matters, but repeating costs and credit-funded fun become long-term payment drag.";
     }
-    return "Cash below zero converts into toxic credit debt at 19.8% APR, while high health and joy keep options open.";
+        return "Cash below zero converts into high-interest credit debt at 19.8% APR, while high health and joy keep options open.";
 }
 
 function getDecisionMechanicsHTML(event) {
@@ -839,7 +918,7 @@ function getDecisionMechanicsHTML(event) {
             </div>
         </div>
         <div class="mt-2 text-[9.5px] text-slate-400 leading-snug">
-            Hidden levers: empty cash becomes 19.8% credit debt, debt above $25k drains joy, and health over 85 adds a 5% income focus bonus.
+            Mechanics to watch: empty cash becomes 19.8% credit debt, debt above $25k drains joy, health below 30 cuts income by 15%, and health over 85 adds a 5% focus bonus.
         </div>
     `;
 }
@@ -986,7 +1065,7 @@ function updateHUD() {
     // Toggle action and status controls
     setHabitControl("toggle-gym-btn", "gym-status", gameState.activeHabits.gym, "Join", "Cancel", "emerald");
     setHabitControl("toggle-organic-btn", "organic-status", gameState.activeHabits.organicFood, "Set Up", "Cancel", "emerald");
-    setHabitControl("toggle-streaming-btn", "streaming-status", gameState.subscriptionCost >= 15, "Activate", "Cancel", "violet");
+    setHabitControl("toggle-streaming-btn", "streaming-status", !!gameState.activeHabits.streaming, "Activate", "Cancel", "violet");
     setHabitControl("toggle-roadtrip-btn", "roadtrip-status", gameState.activeHabits.social, "Plan", "Pause", "violet");
 
     updateVisualScenery();
@@ -1599,7 +1678,7 @@ const DECISION_CARDS = [
         speaker: "Psychologist",
         avatar: "🧠",
         tag: "CAREER",
-        description: "The daily corporate grind feels empty and toxic. Your brain feels overloaded. Will you step down to a quiet part-time Consulting role with 30% lower salary but low stress, or grind along?",
+        description: "The daily corporate grind feels draining. Your brain feels overloaded. Will you step down to a quiet part-time Consulting role with 30% lower salary but low stress, or grind along?",
         literacy: "<strong>Emotional Hedonics:</strong> Work is a marathon, not a sprint. Stepping back to protect health and mental sanity often prevents catastrophic midlife collapse.",
         choices: [
             {
@@ -1676,7 +1755,7 @@ const DECISION_CARDS = [
         avatar: "✉️",
         tag: "WEALTH",
         description: "An aging family relative has passed away, leaving you a surprise cash bequest of $25,000. How do you handle this unexpected capital windfall?",
-        literacy: "<strong>Windfall Allocation Rules:</strong> Instant cash windfalls should be systematically split: pay down remaining toxic debts, secure an emergency fund, and invest the remainder.",
+        literacy: "<strong>Windfall Allocation Rules:</strong> Instant cash windfalls should be systematically split: pay down high-interest debts, secure an emergency fund, and invest the remainder.",
         choices: [
             {
                 label: "Pay down remaining Debts, and invest excess cash in S&P 500",
@@ -1902,7 +1981,7 @@ const RANDOM_EVENTS_DECK = [
     }
 ];
 
-// Single ticker clock cycle - seasonal progression update
+// Single manual turn cycle - seasonal progression update
 function tickSeason(forceAdvance = false) {
     if (gameState.isPaused && !forceAdvance) return;
 
@@ -1926,7 +2005,7 @@ function tickSeason(forceAdvance = false) {
     // Redraw scenery weather/particles based on seasonal changes
     updateSeasonalEffects();
 
-    // 2. RUN RECURRING CASHFLOW FINANCE ALGORITHMS
+    // 2. Apply recurring cashflow finance algorithms
     const monthsInSeason = 3;
     
     // Core stock portfolio compound yields (Quarterly returns)
@@ -2002,7 +2081,7 @@ function tickSeason(forceAdvance = false) {
 
     // OVERSPENDING / BANKRUPTCY EMERGENCY DEBT CHECK (CRITICAL LITERACY LESSON)
     if (gameState.wealth < 0) {
-        // Any negative liquid cash transfers entirely into high-interest toxic Credit Card rows!
+        // Any negative liquid cash transfers into high-interest credit card debt.
         const CC_DebtAccum = Math.abs(gameState.wealth);
         gameState.debt += CC_DebtAccum;
         gameState.wealth = 0; // cash resets to empty
@@ -2044,6 +2123,15 @@ function tickSeason(forceAdvance = false) {
     if (gameState.activeHabits.gym) {
         gameState.health = Math.min(100, gameState.health + 2.0);
         gameState.happiness = Math.min(100, gameState.happiness + 1.0);
+    }
+
+    // Recurring joy habits
+    if (gameState.activeHabits.social) {
+        gameState.happiness = Math.min(100, gameState.happiness + 4.0);
+    }
+
+    if (gameState.activeHabits.streaming) {
+        gameState.happiness = Math.min(100, gameState.happiness + 0.75);
     }
 
     // Debt stress happiness dampener
@@ -2551,6 +2639,7 @@ function presentEventCard(event) {
     labelRemaining.textContent = "1 Critical Decision Pending";
     labelRemaining.classList.replace("bg-slate-900", "bg-teal-500/10");
     labelRemaining.classList.replace("text-slate-400", "text-teal-300");
+    showTurnGuide();
 
     // Smoothly scroll the card into view so players never miss active choices!
     setTimeout(() => {
@@ -2625,6 +2714,7 @@ function selectChoice(index) {
         labelRemaining.classList.replace("text-teal-300", "text-slate-400");
         
         updateHUD();
+        showTurnGuide();
     }, 200);   
 }
 
@@ -2740,20 +2830,14 @@ function endGameRetirement(reason) {
     
     toggleModal("modal-retirement", true);
 }
-// Simulation Core Controls 
+// Turn Core Controls 
 function setPlayerLedWaitState(label = "READY") {
     gameState.isPaused = true;
     clearInterval(gameState.tickerIntervalId);
     gameState.tickerIntervalId = null;
 
-    const cpPause = document.getElementById("btn-cockpit-pause");
-    const cpPlay = document.getElementById("btn-cockpit-normal");
-    const cpFast = document.getElementById("btn-cockpit-fast");
     const cpStatus = document.getElementById("engine-status-text");
 
-    if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-    if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-    if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
     if (cpStatus) {
         cpStatus.textContent = label;
         cpStatus.className = "text-teal-400 font-extrabold";
@@ -2761,93 +2845,21 @@ function setPlayerLedWaitState(label = "READY") {
 }
 
 function pauseSimulation() {
-    gameState.isPaused = true;
-    clearInterval(gameState.tickerIntervalId);
-    gameState.tickerIntervalId = null;
-    
-    const topPauseBtn = document.getElementById("btn-pause");
-    const topPlayNormalBtn = document.getElementById("btn-play-normal");
-    const topPlayFastBtn = document.getElementById("btn-play-fast");
-    if (topPauseBtn) topPauseBtn.className = "h-8 w-8 rounded-lg flex items-center justify-center bg-slate-800 text-white transition scale-95 border border-slate-700";
-    if (topPlayNormalBtn) topPlayNormalBtn.className = "h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-400 transition";
-    if (topPlayFastBtn) topPlayFastBtn.className = "h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-400 transition";
-
-    // Command Cockpit controls
-    const cpPause = document.getElementById("btn-cockpit-pause");
-    const cpPlay = document.getElementById("btn-cockpit-normal");
-    const cpFast = document.getElementById("btn-cockpit-fast");
-    const cpStatus = document.getElementById("engine-status-text");
-
-    if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black text-amber-300 bg-amber-500/10 border border-amber-500/20 shadow-md transition scale-95 duration-150";
-    if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-    if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-    if (cpStatus) {
-        cpStatus.textContent = "PAUSED";
-        cpStatus.className = "text-amber-300 font-extrabold";
-    }
+    setPlayerLedWaitState("READY");
 }
 
-function startSimulation(speedMs) {
+function startSimulation() {
     if (gameState.currentEvent !== null) {
         updateDecisionMilestoneVisual();
         setPlayerLedWaitState("CHOICE READY");
-        return;
-    }
-
-    if (gameState.tickerIntervalId && gameState.tickerSpeed === speedMs && !gameState.isPaused) return;
-    
-    // Clear past interval timers
-    if (gameState.tickerIntervalId) {
-        clearInterval(gameState.tickerIntervalId);
-    }
-    
-    gameState.isPaused = false;
-    gameState.tickerSpeed = speedMs;
-    
-    // Fire periodic intervals
-    gameState.tickerIntervalId = setInterval(tickSeason, speedMs);
-    
-    // Update top HUD button states (guarded in case header controls were removed)
-    const topPauseBtn2 = document.getElementById("btn-pause");
-    const topPlayNormalBtn2 = document.getElementById("btn-play-normal");
-    const topPlayFastBtn2 = document.getElementById("btn-play-fast");
-    if (topPauseBtn2) topPauseBtn2.className = "h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-400 transition";
-    if (speedMs > 2000) {
-        if (topPlayNormalBtn2) topPlayNormalBtn2.className = "h-8 w-8 rounded-lg flex items-center justify-center bg-teal-500/10 hover:bg-teal-500/25 text-teal-400 hover:text-teal-300 transition border border-teal-500/20 scale-95";
-        if (topPlayFastBtn2) topPlayFastBtn2.className = "h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-400 transition";
     } else {
-        if (topPlayNormalBtn2) topPlayNormalBtn2.className = "h-8 w-8 rounded-lg flex items-center justify-center hover:bg-slate-800 text-slate-400 transition";
-        if (topPlayFastBtn2) topPlayFastBtn2.className = "h-8 w-8 rounded-lg flex items-center justify-center bg-teal-500/10 hover:bg-teal-500/25 text-teal-400 hover:text-teal-300 transition border border-teal-500/20 scale-95";
+        setPlayerLedWaitState("READY");
     }
-
-    // Command Cockpit controls
-    const cpPause = document.getElementById("btn-cockpit-pause");
-    const cpPlay = document.getElementById("btn-cockpit-normal");
-    const cpFast = document.getElementById("btn-cockpit-fast");
-    const cpStatus = document.getElementById("engine-status-text");
-
-    if (speedMs > 2000) {
-        if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-        if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black bg-teal-500 text-slate-950 hover:bg-teal-400 transition active:scale-95 shadow-md shadow-teal-500/25 duration-150 border-0";
-        if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-        if (cpStatus) {
-            cpStatus.textContent = "RUNNING";
-            cpStatus.className = "text-teal-400 font-extrabold";
-        }
-    } else {
-        if (cpPause) cpPause.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-        if (cpPlay) cpPlay.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white hover:bg-slate-900 transition active:scale-95 duration-150";
-        if (cpFast) cpFast.className = "px-2.5 py-1.5 rounded-lg flex items-center gap-1 text-[9px] font-black bg-amber-500 text-slate-950 hover:bg-amber-400 transition active:scale-95 shadow-md shadow-amber-500/25 duration-150 border-0";
-        if (cpStatus) {
-            cpStatus.textContent = "FAST FORWARD";
-            cpStatus.className = "text-amber-500 font-extrabold animate-pulse";
-        }
-    }
+    showTurnGuide();
 }
 
 function resumeSimulation() {
-    if (gameState.currentEvent !== null) return; // halt simulation resume if choices are pending
-    startSimulation(gameState.tickerSpeed);
+    startSimulation();
 }
 
 // User-driven manual season tick (when paused)
@@ -2855,6 +2867,7 @@ function forceManualTick() {
     tickSeason(true);
     if (gameState.currentEvent === null) {
         setPlayerLedWaitState("READY");
+        showTurnGuide();
     }
 }
 
@@ -2870,7 +2883,7 @@ function restartGame() {
         wealth: 5000,
         happiness: 75,
         portfolio: 0,
-        debt: 15000,
+        debt: 0,
         
         salary: 400, // part time study default
         rent: 300,
@@ -2887,7 +2900,7 @@ function restartGame() {
         activeHousing: "shared_apartment",
         activeTransport: "walking",
         activeCareer: "student",
-        activeHabits: { gym: false, organicFood: false, social: false, four01k: false },
+        activeHabits: { gym: false, organicFood: false, social: false, streaming: false, four01k: false },
         
         history: [],
         hasGraduated: false,
@@ -2924,19 +2937,6 @@ function restartGame() {
 
 // Setup Event listeners when Window elements finish mounting
 window.addEventListener("DOMContentLoaded", () => {
-    // Top HUD controls (only attach if present; header controls were simplified)
-    const topPause = document.getElementById("btn-pause");
-    const topPlayNormal = document.getElementById("btn-play-normal");
-    const topPlayFast = document.getElementById("btn-play-fast");
-    if (topPause) topPause.addEventListener("click", pauseSimulation);
-    if (topPlayNormal) topPlayNormal.addEventListener("click", () => startSimulation(3000));
-    if (topPlayFast) topPlayFast.addEventListener("click", () => startSimulation(1000));
-
-    // Simulation Command Cockpit controls
-    document.getElementById("btn-cockpit-pause").addEventListener("click", pauseSimulation);
-    document.getElementById("btn-cockpit-normal").addEventListener("click", () => startSimulation(3000));
-    document.getElementById("btn-cockpit-fast").addEventListener("click", () => startSimulation(1000));
-    
     document.getElementById("btn-restart").addEventListener("click", restartGame);
     
     // Literacy help manual bindings

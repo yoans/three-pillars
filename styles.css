@@ -111,10 +111,21 @@
 /* Hover effects for decisions button options */
 .choice-btn {
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 .choice-btn:hover {
     transform: translateX(4px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+#active-event-card,
+#active-event-card > *,
+#event-choices-container,
+#decision-mechanics-panel {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 /* Highlight low states */
