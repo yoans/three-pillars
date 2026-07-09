@@ -163,3 +163,32 @@
 .weather-season-spring {
     background: linear-gradient(to bottom, #111c44, #0f172a) !important;
 }
+
+/* Health / Happiness percentage wheels */
+.stat-wheel {
+    --wheel-pct: 50;
+    --wheel-color: #10B981;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 9999px;
+    background: conic-gradient(var(--wheel-color) calc(var(--wheel-pct) * 1%), #1e293b 0);
+    display: grid;
+    place-items: center;
+    position: relative;
+    flex-shrink: 0;
+}
+.stat-wheel::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border-radius: 9999px;
+    background: #0f172a;
+}
+.stat-wheel-value {
+    position: relative;
+    z-index: 1;
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: #f8fafc;
+    font-variant-numeric: tabular-nums;
+}

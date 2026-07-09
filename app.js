@@ -1,26 +1,39 @@
-// LifeForge Game State Engine
+// Stewardship Life — Game State Engine
+// Vision: docs/sim-money-vision.md (David Strege brief)
+// Score: Total = Wealth × (1 + Health/100 + Happiness/100)
+
+const LIFE_START_AGE = 25.0;
+const WORK_END_AGE = 65.0;
+const LIFE_END_AGE = 85.0;
+const AGE_OFFSET_FROM_LEGACY = 7; // Legacy cards were authored for ages 18–60
 
 // Initializing Game State Variables
 let gameState = {
+    playMode: null, // "classroom" | "ongoing"
     // Demographics
-    age: 18.0,
+    age: LIFE_START_AGE,
     seasonIdx: 0, // 0: Spring, 1: Summer, 2: Autumn, 3: Winter
     seasons: ["Spring", "Summer", "Autumn", "Winter"],
     
     // Core Pillars
     health: 80,
-    wealth: 5000, // cash savings
+    wealth: 12000, // cash savings at ~age 25
     happiness: 75,
+    
+    // Stewardship plans (Spend / Save / Share + time + talents)
+    spendingPlan: { spendPct: 70, savePct: 20, sharePct: 10 },
+    timePlan: { work: 40, sleep: 56, learn: 5, serve: 3, social: 8, fun: 6 },
+    talentFocus: "balanced", // self | others | balanced
     
     // Financial Portfolios
     portfolio: 0, // Stocks/Investments
     debt: 0,   // Education and lifestyle choices create debt during play
     
     // Recurring Monthly Income & Expenses (multiplied by 3 for season ticks)
-    salary: 500, // starting part-time
-    rent: 300,
-    foodCost: 150,
-    transportCost: 0,
+    salary: 3200, // starting full-time around age 25
+    rent: 900,
+    foodCost: 350,
+    transportCost: 120,
     gymCost: 0,
     subscriptionCost: 0,
     insuranceCost: 0,
@@ -32,8 +45,8 @@ let gameState = {
     
     // Active status types (for visuals)
     activeHousing: "shared_apartment",
-    activeTransport: "walking",
-    activeCareer: "student",
+    activeTransport: "used_car",
+    activeCareer: "entry_professional",
     activeHabits: {
         gym: false,
         organicFood: false,
@@ -46,7 +59,7 @@ let gameState = {
     history: [],
     
     // Track indicators
-    hasGraduated: false,
+    hasGraduated: true,
     yoloCount: 0,
     hasFour01k: false,
     hasHomeEquity: 0,
@@ -129,6 +142,7 @@ function updateVisualScenery() {
     
     const transportIconMap = {
         walking: "🚶",
+        used_car: "🚗",
         beater_car: "🚗",
         reliable_sedan: "🚙",
         sports_car: "🏎️",
@@ -137,6 +151,7 @@ function updateVisualScenery() {
 
     const careerIconMap = {
         student: "🎓",
+        entry_professional: "💼",
         entry_level: "💼",
         mid_level: "📊",
         executive: "👔",
@@ -180,6 +195,7 @@ function updateVisualScenery() {
         transportDiv.textContent = transportIconMap[gameState.activeTransport] || "🚶";
         const displayTitles = {
             walking: "Walk/Transit",
+            used_car: "Used Car",
             beater_car: "Cheap Beater",
             reliable_sedan: "Reliable Sedan",
             sports_car: "Sports Car 🏎️",
@@ -201,6 +217,7 @@ function updateVisualScenery() {
         workDiv.textContent = careerIconMap[gameState.activeCareer] || "💼";
         const displayTitles = {
             student: "Student life",
+            entry_professional: "Early Career",
             entry_level: "Entry Corp",
             mid_level: "Mid-Mngr",
             executive: "VP Executive",
@@ -825,10 +842,11 @@ function interactWealth(action, amount) {
     updateHUD();
 }
 
-// Calculates sliding wealth target based on player age.
-// Age 18: $5,000 | Age 30: $33,000 | Age 45: $150,000 | Age 65: $480,000
+// Calculates sliding wealth target based on player age (age 25 baseline).
+// Age 25: ~$12k | Age 40: grows | Age 65: retirement target band
 function getTargetWealthForAge(age) {
-    return 5000 + Math.pow((age - 18), 2.2) * 100;
+    const years = Math.max(0, age - LIFE_START_AGE);
+    return 12000 + Math.pow(years, 2.2) * 100;
 }
 
 function formatMoney(value, showSign = false) {
@@ -839,6 +857,34 @@ function formatMoney(value, showSign = false) {
 
 function getCurrentNetWorth() {
     return gameState.wealth + gameState.portfolio - gameState.debt;
+}
+
+/** David's formula: Total = Wealth + (Health% × Wealth) + (Happiness% × Wealth) */
+function getLifetimeScore(state = gameState) {
+    const wealth = (state.wealth || 0) + (state.portfolio || 0) - (state.debt || 0);
+    const healthFactor = Math.max(0, Math.min(100, state.health || 0)) / 100;
+    const happinessFactor = Math.max(0, Math.min(100, state.happiness || 0)) / 100;
+    return wealth * (1 + healthFactor + happinessFactor);
+}
+
+function formatCompactMoney(value) {
+    const n = Math.round(value || 0);
+    const abs = Math.abs(n);
+    const sign = n < 0 ? "-" : "";
+    if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
+    if (abs >= 10_000) return `${sign}$${Math.round(abs / 1000)}k`;
+    if (abs >= 1000) return `${sign}$${(abs / 1000).toFixed(1)}k`;
+    return `${sign}$${abs.toLocaleString()}`;
+}
+
+function setStatWheel(cardId, pct, color) {
+    const card = document.getElementById(cardId);
+    if (!card) return;
+    const wheel = card.querySelector(".stat-wheel");
+    if (!wheel) return;
+    const clamped = Math.max(0, Math.min(100, pct));
+    wheel.style.setProperty("--wheel-pct", clamped);
+    if (color) wheel.style.setProperty("--wheel-color", color);
 }
 
 function convertCashShortfallToCredit(sourceLabel) {
@@ -872,7 +918,7 @@ function getMonthlyCashFlowSnapshot(state = gameState) {
 
 function estimateCompoundedValue(amount) {
     if (amount <= 0) return 0;
-    const yearsRemaining = Math.max(0, 65 - gameState.age);
+    const yearsRemaining = Math.max(0, WORK_END_AGE - gameState.age);
     return Math.round(amount * Math.pow(1 + gameState.portfolioYieldRate, yearsRemaining));
 }
 
@@ -958,84 +1004,76 @@ function setHabitControl(buttonId, statusId, isActive, inactiveAction, activeAct
 
 // Recalculating recurring statements & Redrawing numbers
 function updateHUD() {
-    // 1. Pillar counters
-    document.getElementById("val-health").textContent = `${Math.round(gameState.health)}/100`;
-    document.getElementById("bar-health").style.width = `${gameState.health}%`;
-    
-    const netWorth = gameState.wealth + gameState.portfolio - gameState.debt;
+    const netWorth = getCurrentNetWorth();
+    const lifetimeScore = getLifetimeScore();
     const targetWealth = getTargetWealthForAge(gameState.age);
     let wealthScore = 0;
     if (netWorth > 0) {
         wealthScore = Math.max(0, Math.min(100, Math.round((netWorth / targetWealth) * 100)));
     }
-    
-    document.getElementById("val-wealth").textContent = `${wealthScore}/100`;
-    document.getElementById("bar-wealth").style.width = `${wealthScore}%`;
-    
-    // Colorize bars if dropping to emergency danger ranges
-    const hCard = document.getElementById("pillar-health-card");
-    if (gameState.health < 30) {
-        hCard.classList.add("danger-flash");
-    } else {
-        hCard.classList.remove("danger-flash");
+
+    // Health & Happiness wheels; Wealth shows net worth; grand total uses David's formula
+    document.getElementById("val-health").textContent = `${Math.round(gameState.health)}%`;
+    setStatWheel("pillar-health-card", gameState.health, "#10B981");
+    document.getElementById("val-wealth").textContent = formatCompactMoney(netWorth);
+    document.getElementById("val-happiness").textContent = `${Math.round(gameState.happiness)}%`;
+    setStatWheel("pillar-happiness-card", gameState.happiness, "#8B5CF6");
+
+    const totalEl = document.getElementById("pillar-total-score");
+    if (totalEl) totalEl.textContent = formatMoney(lifetimeScore);
+    const hudTotal = document.getElementById("hud-total-score");
+    if (hudTotal) {
+        hudTotal.textContent = formatCompactMoney(lifetimeScore);
+        hudTotal.className = lifetimeScore >= 0
+            ? "font-black text-teal-300 truncate tabular-nums"
+            : "font-black text-rose-400 truncate tabular-nums";
     }
+    
+    const hCard = document.getElementById("pillar-health-card");
+    if (gameState.health < 30) hCard.classList.add("danger-flash");
+    else hCard.classList.remove("danger-flash");
 
     const wCard = document.getElementById("pillar-wealth-card");
-    if (netWorth < 0 || wealthScore < 30) {
-        wCard.classList.add("danger-flash");
-    } else {
-        wCard.classList.remove("danger-flash");
-    }
+    if (netWorth < 0 || wealthScore < 30) wCard.classList.add("danger-flash");
+    else wCard.classList.remove("danger-flash");
 
     const hapCard = document.getElementById("pillar-happiness-card");
-    if (gameState.happiness < 30) {
-        hapCard.classList.add("danger-flash");
-    } else {
-        hapCard.classList.remove("danger-flash");
-    }
-
-    document.getElementById("val-happiness").textContent = `${Math.round(gameState.happiness)}/100`;
-    document.getElementById("bar-happiness").style.width = `${gameState.happiness}%`;
+    if (gameState.happiness < 30) hapCard.classList.add("danger-flash");
+    else hapCard.classList.remove("danger-flash");
     
-    // 2. Pillar descriptors
     let healthDesc = "Fit & Focused";
-    if (gameState.health >= 85) healthDesc = "Atheletically Superb 🥇";
-    else if (gameState.health < 30) healthDesc = "Critical Health Burnout 😷";
-    else if (gameState.health < 55) healthDesc = "Fatigued & Fat-burdened";
+    if (gameState.health >= 85) healthDesc = "Strong & Restored";
+    else if (gameState.health < 30) healthDesc = "Critical Burnout";
+    else if (gameState.health < 55) healthDesc = "Fatigued";
     document.getElementById("desc-health").textContent = healthDesc;
     
     let wealthDesc = "Balanced Ledger";
-    if (netWorth < 0) {
-        wealthDesc = "Sinking in Debt Trap ⚠️";
-    } else if (wealthScore >= 120) {
-        wealthDesc = `Wealth compounding early! 🚀 (Target: $${(targetWealth/1000).toFixed(0)}k)`;
-    } else if (wealthScore >= 90) {
-        wealthDesc = `On target budget 🎯 (Target: $${(targetWealth/1000).toFixed(0)}k)`;
-    } else if (wealthScore >= 60) {
-        wealthDesc = `Normal target pace 👍 (Target: $${(targetWealth/1000).toFixed(0)}k)`;
-    } else if (wealthScore >= 30) {
-        wealthDesc = `Behind target stats 📉 (Target: $${(targetWealth/1000).toFixed(0)}k)`;
-    } else {
-        wealthDesc = `Underfunded baseline ⚠️ (Target: $${(targetWealth/1000).toFixed(0)}k)`;
-    }
+    if (netWorth < 0) wealthDesc = "Sinking in Debt";
+    else if (wealthScore >= 120) wealthDesc = `Ahead of pace (${formatCompactMoney(targetWealth)})`;
+    else if (wealthScore >= 90) wealthDesc = `On target (${formatCompactMoney(targetWealth)})`;
+    else if (wealthScore >= 60) wealthDesc = `Steady pace (${formatCompactMoney(targetWealth)})`;
+    else if (wealthScore >= 30) wealthDesc = `Behind target (${formatCompactMoney(targetWealth)})`;
+    else wealthDesc = `Underfunded (${formatCompactMoney(targetWealth)})`;
     document.getElementById("desc-wealth").textContent = wealthDesc;
     
     let hapDesc = "Feeling Good";
-    if (gameState.happiness >= 85) hapDesc = "Living Best Life 🌟";
-    else if (gameState.happiness < 30) hapDesc = "Severely Depressed/Stressed 😢";
-    else if (gameState.happiness < 55) hapDesc = "Stale Boredom & Routine";
+    if (gameState.happiness >= 85) hapDesc = "Flourishing";
+    else if (gameState.happiness < 30) hapDesc = "Stressed & Empty";
+    else if (gameState.happiness < 55) hapDesc = "Routine Drift";
     document.getElementById("desc-happiness").textContent = hapDesc;
     
-    // HUD top bar tags
     document.getElementById("player-age").textContent = gameState.age.toFixed(2);
     document.getElementById("player-season").textContent = gameState.seasons[gameState.seasonIdx];
     document.getElementById("hud-net-worth").textContent = netWorth >= 0 ? `$${netWorth.toLocaleString()}` : `-$${Math.abs(netWorth).toLocaleString()}`;
     document.getElementById("hud-net-worth").className = netWorth >= 0 ? "font-black text-emerald-400 truncate tabular-nums" : "font-black text-rose-400 truncate tabular-nums";
+
+    const modeBadge = document.getElementById("mode-badge");
+    if (modeBadge) {
+        modeBadge.textContent = gameState.playMode === "classroom" ? "CLASSROOM" : "ONGOING";
+    }
     
-    // 3. Finance Ledger items
     document.getElementById("budget-salary").textContent = `$${gameState.salary.toLocaleString()} /mo`;
     
-    // Portfolio Interest Income estimates
     const stockMonthlyRate = Math.round(gameState.portfolio * (gameState.portfolioYieldRate / 12));
     const savingMonthlyRate = Math.round(gameState.wealth * (gameState.savingsYieldRate / 12));
     document.getElementById("budget-investment-income").textContent = `+$${(stockMonthlyRate + savingMonthlyRate).toLocaleString()} /mo`;
@@ -1044,7 +1082,6 @@ function updateHUD() {
     document.getElementById("budget-food").textContent = `-$${gameState.foodCost.toLocaleString()} /mo`;
     document.getElementById("budget-transport").textContent = `-$${gameState.transportCost.toLocaleString()} /mo`;
     
-    // Interest penalty calculations
     const debtMonthlyFee = Math.round(gameState.debt * (gameState.debtInterestRate / 12));
     document.getElementById("budget-debt-interest").textContent = `-$${debtMonthlyFee.toLocaleString()} /mo`;
     
@@ -1053,7 +1090,6 @@ function updateHUD() {
     
     document.getElementById("budget-social").textContent = `-$${gameState.subscriptionCost.toLocaleString()} /mo`;
     
-    // Real recurring monthly flow
     const monthlyIncome = gameState.salary + stockMonthlyRate + savingMonthlyRate;
     const monthlyExpenses = gameState.rent + gameState.foodCost + gameState.transportCost + debtMonthlyFee + insuranceAndGym + gameState.subscriptionCost;
     const netFlow = monthlyIncome - monthlyExpenses;
@@ -1063,24 +1099,20 @@ function updateHUD() {
     budgetNetElement.className = netFlow >= 0 ? "text-base font-black text-emerald-400" : "text-base font-black text-rose-400";
     
     const budgetWarning = document.getElementById("budget-warning");
-    if (netFlow < 0) {
-        budgetWarning.classList.remove("hidden");
-    } else {
-        budgetWarning.classList.add("hidden");
-    }
+    if (netFlow < 0) budgetWarning.classList.remove("hidden");
+    else budgetWarning.classList.add("hidden");
     
-    // 4. Asset Panel specifics
     document.getElementById("asset-savings").textContent = `$${Math.round(gameState.wealth).toLocaleString()}`;
     document.getElementById("asset-portfolio").textContent = `$${Math.round(gameState.portfolio).toLocaleString()}`;
     document.getElementById("asset-debt").textContent = `-$${Math.round(gameState.debt).toLocaleString()}`;
     
-    // Toggle action and status controls
     setHabitControl("toggle-gym-btn", "gym-status", gameState.activeHabits.gym, "Join", "Cancel", "emerald");
     setHabitControl("toggle-organic-btn", "organic-status", gameState.activeHabits.organicFood, "Set Up", "Cancel", "emerald");
     setHabitControl("toggle-streaming-btn", "streaming-status", !!gameState.activeHabits.streaming, "Activate", "Cancel", "violet");
     setHabitControl("toggle-roadtrip-btn", "roadtrip-status", gameState.activeHabits.social, "Plan", "Pause", "violet");
 
     updateVisualScenery();
+    updateHabitHeaderSummary();
 }
 
 
@@ -2004,10 +2036,18 @@ function tickSeason(forceAdvance = false) {
         return;
     }
 
-    // Check if player age is past retirement limit
-    if (gameState.age >= 65.0) {
+    // Full life arc ends at 85 (work typically to 65; retirement years still score)
+    if (gameState.age >= LIFE_END_AGE) {
         endGameRetirement("age_limit");
         return;
+    }
+
+    // At work-end age, shift career to retired if still earning wages
+    if (gameState.age >= WORK_END_AGE && gameState.activeCareer !== "retired" && gameState.salary > 0) {
+        const priorSalary = gameState.salary;
+        gameState.activeCareer = "retired";
+        gameState.salary = 0;
+        addLog(`🌅 <span class="text-amber-300 font-black">Retirement transition:</span> Wage income of $${priorSalary.toLocaleString()}/mo ended at age ${WORK_END_AGE}. Living on savings, investments, and stewardship choices through age ${LIFE_END_AGE}.`, true);
     }
 
     // 1. Advance age structures
@@ -2410,8 +2450,8 @@ function dispatchPendingChoice() {
     // 1. Check if an active choice card is currently visual to avoid overwrites
     if (gameState.currentEvent !== null) return;
     
-    // 2. Hunt for static chronological age matching cards
-    let match = DECISION_CARDS.find(card => Math.abs(card.age - gameState.age) < 0.1);
+    // 2. Hunt for chronological cards (legacy ages shifted +7 so 18→25, 60→67)
+    let match = DECISION_CARDS.find(card => Math.abs((card.age + AGE_OFFSET_FROM_LEGACY) - gameState.age) < 0.1);
     
     if (match) {
         presentEventCard(match);
@@ -2746,6 +2786,8 @@ function endGameRetirement(reason) {
     document.getElementById("retirement-health").textContent = `${Math.round(gameState.health)}%`;
     document.getElementById("retirement-wealth").textContent = `$${finalNetWorth.toLocaleString()}`;
     document.getElementById("retirement-happiness").textContent = `${Math.round(gameState.happiness)}%`;
+    const retirementTotal = document.getElementById("retirement-total-score");
+    if (retirementTotal) retirementTotal.textContent = formatMoney(getLifetimeScore());
     
     ageSubtitle.textContent = `Completed journey at Age ${gameState.age.toFixed(1)}`;
     
@@ -2754,32 +2796,36 @@ function endGameRetirement(reason) {
     let message = "";
     
     if (reason === "health_crisis") {
-        icon = "🩺💀";
-        titleEl.textContent = "Life Journey Ended Prematurely";
-        pathLabel = "Physical Burnout Collapse";
-        message = "Your choices led to severe physical and emotional exhaustion. Your Health Pillar bottomed out to 0%, forcing a critical systemic collapse. Though you ran the race, you skipped the recovery stops, burning out your primary spark.";
+        icon = "🩺";
+        titleEl.textContent = "Life Interrupted";
+        pathLabel = "Early Collapse — Reboot";
+        message = "Health reached zero before the intended finish. In the full design, an early death before 65 reboots the run so students can try a wiser stewardship plan. Press Play Again to restart.";
     } else {
         // Evaluate typical timeline milestones
         if (finalNetWorth > 300000 && gameState.happiness > 70 && gameState.health > 70) {
             icon = "🤴🏆";
-            pathLabel = "The Balanced Master Architect!";
-            message = "Brilliant! You successfully solved the puzzle. By managing stress, utilizing compound matching early, and eating whole foods, you entered old age as an absolute Balanced Champion. Fulfilling safety, liquid assets, and high happiness are yours!";
+            pathLabel = "Faithful Steward";
+            message = "You spent less than you earned, shared generously, invested wisely, and guarded health and relationships. Net worth mattered — but so did the life around it. That is the lesson.";
         } else if (finalNetWorth > 250000 && gameState.health < 40) {
             icon = "📊💼";
-            pathLabel = "The Overworked Workaholic Workhorse";
-            message = "You accumulated major wealth portfolios, but at severe personal costs. Your health reserves are completely spent, and your joints cry out. You are rich in stock lines, but bankrupt in physical capability.";
+            pathLabel = "Wealth Without Wellness";
+            message = "You built impressive assets, but sacrificed health along the way. The lifetime score formula shows why: money multiplied by a broken body still leaves a diminished life.";
         } else if (finalNetWorth < 5000 && gameState.happiness > 75) {
             icon = "🎒🏝️";
-            pathLabel = "The Happy Nomad Wanderer";
-            message = "You didn't accumulate a massive stock portfolio, but you lived fully! Beautiful memories, intimate relationships, and zero corporate stress keep your spirit bright. However, modest liquid safety means you rely daily on generic state medical buffers.";
+            pathLabel = "Rich in Relationships";
+            message = "You lived with joy and connection, but thin reserves. Happiness without a savings and sharing plan can still leave later years fragile.";
         } else if (finalNetWorth < -10000) {
             icon = "🏚️🧗";
-            pathLabel = "Secured in Debt Bondage";
-            message = "Your timeline ended deep in secondary deficit lines. You fell into early compound interest traps, overspending on depreciating luxury liabilities like flashy financing. Sinking monthly payments leaves your retirement safety net extremely fragile.";
+            pathLabel = "Debt Bondage";
+            message = "High-interest debt and overspending compounded against you. Biblical wisdom urges living below your means and limiting debt — this ending shows why.";
+        } else if (reason === "classroom_projection") {
+            icon = "🎓";
+            pathLabel = "Classroom Projection";
+            message = "This is a fast lifetime projection from your spending, time, and talent plans. Use it for discussion: what would you change after the lesson?";
         } else {
             icon = "🏠☕";
-            pathLabel = "The Suburban Quiet Observer";
-            message = "You lived a neat, standard, comfortable life. You experienced typical financial hiccups, but kept outstanding debts manageable, retiring safely with basic shelter and normal life satisfaction.";
+            pathLabel = "Steady Steward";
+            message = "You kept a workable balance of spend, save, and share. There is room to grow — especially in rest, service, and long-term investing — but you avoided the worst traps.";
         }
     }
     
@@ -2883,78 +2929,230 @@ function forceManualTick() {
     }
 }
 
-// Resets state variables to original defaults
-function restartGame() {
-    toggleModal("modal-retirement", false);
-    
-    gameState = {
-        age: 18.0,
+function createDefaultGameState(playMode = null) {
+    return {
+        playMode,
+        age: LIFE_START_AGE,
         seasonIdx: 0,
         seasons: ["Spring", "Summer", "Autumn", "Winter"],
         health: 80,
-        wealth: 5000,
+        wealth: 12000,
         happiness: 75,
+        spendingPlan: { spendPct: 70, savePct: 20, sharePct: 10 },
+        timePlan: { work: 40, sleep: 56, learn: 5, serve: 3, social: 8, fun: 6 },
+        talentFocus: "balanced",
         portfolio: 0,
         debt: 0,
-        
-        salary: 400, // part time study default
-        rent: 300,
-        foodCost: 150,
-        transportCost: 0,
+        salary: 3200,
+        rent: 900,
+        foodCost: 350,
+        transportCost: 120,
         gymCost: 0,
         subscriptionCost: 0,
-        insuranceCost: 0,
-        
+        insuranceCost: 150,
         debtInterestRate: 0.045,
         portfolioYieldRate: 0.08,
         savingsYieldRate: 0.02,
-        
         activeHousing: "shared_apartment",
-        activeTransport: "walking",
-        activeCareer: "student",
+        activeTransport: "used_car",
+        activeCareer: "entry_professional",
         activeHabits: { gym: false, organicFood: false, social: false, streaming: false, four01k: false },
-        
         history: [],
-        hasGraduated: false,
+        hasGraduated: true,
         yoloCount: 0,
         hasFour01k: false,
         hasHomeEquity: 0,
-        hasInsurance: false,
+        hasInsurance: true,
         sportsCarTimer: 0,
         burnoutGrace: false,
         hasSideHustle: false,
         healthCrisisSeasons: 0,
         catchUpOffered: { health: false, debt: false, cashDebt: false },
-        isPaused: true, // start paused
+        isPaused: true,
         tickerSpeed: 3000,
         tickerIntervalId: null,
         currentEvent: null,
+        eventIndex: 0,
+        eventQueue: [],
         activeTab: "decisions",
         unreadLogs: 0
     };
-    
-    // Clear log and reload HUDs
+}
+
+function showModeSelect() {
+    toggleModal("modal-retirement", false);
+    toggleModal("modal-classroom-plan", false);
+    toggleModal("modal-mode-select", true);
+    pauseSimulation();
+}
+
+function startGameMode(mode) {
+    toggleModal("modal-mode-select", false);
+    if (mode === "classroom") {
+        gameState = createDefaultGameState("classroom");
+        updateHUD();
+        toggleModal("modal-classroom-plan", true);
+        return;
+    }
+    beginOngoingGame();
+}
+
+function beginOngoingGame() {
+    toggleModal("modal-classroom-plan", false);
+    toggleModal("modal-retirement", false);
+    gameState = createDefaultGameState("ongoing");
+
     document.getElementById("journal-logs-container").innerHTML = `
         <div class="text-[11px] text-indigo-300 leading-snug">
-            <span class="font-bold text-slate-500">Age 18.0:</span> LifeForge timeline initialized. Make your starting educational decisions.
+            <span class="font-bold text-slate-500">Age ${LIFE_START_AGE.toFixed(1)}:</span> Stewardship Life begins. Spend less than you earn, share generously, invest wisely — and guard health and happiness as carefully as net worth.
         </div>
     `;
     updateJournalBadge();
     showRulebookDefault();
-    
     switchTab("decisions");
     updateHUD();
-    presentEventCard(DECISION_CARDS[0]); // Enforce early selection prompts
+
+    // First playable milestone: legacy age 18 card maps to age 25
+    const firstCard = DECISION_CARDS.find(c => Math.abs((c.age + AGE_OFFSET_FROM_LEGACY) - LIFE_START_AGE) < 0.1) || DECISION_CARDS[0];
+    presentEventCard(firstCard);
+    setPlayerLedWaitState("CHOICE READY");
+}
+
+function readClassroomPlanFromForm() {
+    const spendPct = Number(document.getElementById("plan-spend-pct").value) || 0;
+    const savePct = Number(document.getElementById("plan-save-pct").value) || 0;
+    const sharePct = Number(document.getElementById("plan-share-pct").value) || 0;
+    const timePlan = {
+        work: Number(document.getElementById("plan-time-work").value) || 0,
+        sleep: Number(document.getElementById("plan-time-sleep").value) || 0,
+        learn: Number(document.getElementById("plan-time-learn").value) || 0,
+        serve: Number(document.getElementById("plan-time-serve").value) || 0,
+        social: Number(document.getElementById("plan-time-social").value) || 0,
+        fun: Number(document.getElementById("plan-time-fun").value) || 0
+    };
+    const talentFocus = document.getElementById("plan-talent-focus").value || "balanced";
+    return { spendPct, savePct, sharePct, timePlan, talentFocus };
+}
+
+/** Fast classroom projection: apply plan effects across working + retirement years. */
+function runClassroomProjection() {
+    const plan = readClassroomPlanFromForm();
+    const pctTotal = plan.spendPct + plan.savePct + plan.sharePct;
+    const hint = document.getElementById("plan-pct-hint");
+    if (Math.abs(pctTotal - 100) > 0.5) {
+        if (hint) {
+            hint.textContent = `Percentages total ${pctTotal}% — adjust to 100% before projecting.`;
+            hint.className = "text-[9px] text-rose-400 mt-1";
+        }
+        return;
+    }
+    if (hint) {
+        hint.textContent = "Should total 100%. Biblical wisdom encourages ≥10% sharing.";
+        hint.className = "text-[9px] text-slate-500 mt-1";
+    }
+
+    gameState = createDefaultGameState("classroom");
+    gameState.spendingPlan = { spendPct: plan.spendPct, savePct: plan.savePct, sharePct: plan.sharePct };
+    gameState.timePlan = plan.timePlan;
+    gameState.talentFocus = plan.talentFocus;
+
+    // Map time plan into habit flags
+    gameState.activeHabits.gym = plan.timePlan.fun >= 4;
+    gameState.activeHabits.social = plan.timePlan.social >= 5;
+    gameState.hasFour01k = plan.savePct >= 15;
+    gameState.activeHabits.four01k = gameState.hasFour01k;
+
+    const annualGross = gameState.salary * 12;
+    let health = 78;
+    let happiness = 70;
+    let cash = gameState.wealth;
+    let portfolio = 0;
+    let debt = 5000; // modest starter debt
+
+    const sleepOk = plan.timePlan.sleep >= 49; // ~7h/night
+    const serveOk = plan.timePlan.serve >= 2;
+    const learnOk = plan.timePlan.learn >= 3;
+    const overwork = plan.timePlan.work > 50;
+    const shareOk = plan.sharePct >= 10;
+    const saveRate = plan.savePct / 100;
+    const shareRate = plan.sharePct / 100;
+
+    for (let age = LIFE_START_AGE; age < LIFE_END_AGE; age += 1) {
+        const working = age < WORK_END_AGE;
+        const income = working ? annualGross * (learnOk ? 1.02 : 1) * (overwork ? 1.08 : 1) : portfolio * 0.04;
+        const giving = income * shareRate;
+        const saved = Math.max(0, (income - giving) * saveRate);
+        const spentPressure = plan.spendPct > 80 ? 1.15 : 1;
+
+        cash += saved * 0.35;
+        portfolio += saved * 0.65;
+        portfolio *= working ? 1.07 : 1.05;
+        cash *= 1.015;
+        debt = Math.max(0, debt * 1.03 - saved * 0.1);
+        cash -= giving * 0.05; // residual giving friction already mostly from income
+
+        // Health dynamics
+        if (!sleepOk || overwork) health -= 1.8;
+        else health += 0.4;
+        if (plan.timePlan.fun >= 4) health += 0.6;
+        else health -= 0.5;
+
+        // Happiness: service & sharing last; consumption fades
+        if (serveOk) happiness += 1.2;
+        else happiness -= 1.4;
+        if (shareOk) happiness += 0.8;
+        if (plan.talentFocus === "others") happiness += 0.6;
+        else if (plan.talentFocus === "self") happiness -= 0.3;
+        if (plan.timePlan.social >= 6) happiness += 0.7;
+        if (plan.spendPct >= 85) happiness += 0.4 * spentPressure; // short burst then fade next years
+        happiness -= 0.35; // baseline fade without stewardship
+
+        if (working && learnOk) portfolio += annualGross * 0.01;
+
+        health = Math.max(5, Math.min(100, health));
+        happiness = Math.max(5, Math.min(100, happiness));
+
+        gameState.history.push({
+            age,
+            health,
+            wealth: cash + portfolio - debt,
+            happiness
+        });
+    }
+
+    gameState.age = LIFE_END_AGE;
+    gameState.health = health;
+    gameState.happiness = happiness;
+    gameState.wealth = Math.round(cash);
+    gameState.portfolio = Math.round(portfolio);
+    gameState.debt = Math.round(debt);
+    gameState.activeCareer = "retired";
+    gameState.salary = 0;
+
+    toggleModal("modal-classroom-plan", false);
+    updateHUD();
+    endGameRetirement("classroom_projection");
+}
+
+function restartGame() {
+    if (gameState.playMode === "classroom") {
+        toggleModal("modal-retirement", false);
+        toggleModal("modal-classroom-plan", true);
+        return;
+    }
+    if (gameState.playMode === "ongoing") {
+        beginOngoingGame();
+        return;
+    }
+    showModeSelect();
 }
 
 // Setup Event listeners when Window elements finish mounting
 window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("btn-restart").addEventListener("click", restartGame);
+    document.getElementById("btn-restart").addEventListener("click", showModeSelect);
     
-    // Literacy help manual bindings
     document.getElementById("btn-show-guide").addEventListener("click", () => toggleModal("modal-literacy", true));
     
-    // Fallback force tick binding
     document.getElementById("btn-force-season").addEventListener("click", forceManualTick);
     
     document.getElementById("btn-clear-logs").addEventListener("click", () => {
@@ -2963,7 +3161,7 @@ window.addEventListener("DOMContentLoaded", () => {
         updateJournalBadge();
     });
 
-    // Start screen actions
-    restartGame();
-    setPlayerLedWaitState("CHOICE READY");
+    gameState = createDefaultGameState(null);
+    updateHUD();
+    showModeSelect();
 });
