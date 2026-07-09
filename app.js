@@ -23,7 +23,8 @@ let gameState = {
     // Stewardship plans (Spend / Save / Share + time + talents)
     spendingPlan: { spendPct: 70, savePct: 20, sharePct: 10 },
     timePlan: { work: 40, sleep: 56, learn: 5, serve: 3, social: 8, fun: 6 },
-    talentFocus: "balanced", // self | others | balanced
+    talentDomain: "teaching", // teaching | trade | business | creative | care | leadership | technical | athletic
+    talentFocus: "balanced", // balanced | self | others | marketplace | ministry | family
     
     // Financial Portfolios
     portfolio: 0, // Stocks/Investments
@@ -2940,6 +2941,7 @@ function createDefaultGameState(playMode = null) {
         happiness: 75,
         spendingPlan: { spendPct: 70, savePct: 20, sharePct: 10 },
         timePlan: { work: 40, sleep: 56, learn: 5, serve: 3, social: 8, fun: 6 },
+        talentDomain: "teaching",
         talentFocus: "balanced",
         portfolio: 0,
         debt: 0,
@@ -3030,9 +3032,31 @@ function readClassroomPlanFromForm() {
         social: Number(document.getElementById("plan-time-social").value) || 0,
         fun: Number(document.getElementById("plan-time-fun").value) || 0
     };
+    const talentDomain = document.getElementById("plan-talent-domain")?.value || "teaching";
     const talentFocus = document.getElementById("plan-talent-focus").value || "balanced";
-    return { spendPct, savePct, sharePct, timePlan, talentFocus };
+    return { spendPct, savePct, sharePct, timePlan, talentDomain, talentFocus };
 }
+
+/** Talent domain: income ceiling + happiness lean. Focus: how that talent is aimed. */
+const TALENT_DOMAIN_MODS = {
+    teaching: { income: 0.95, happiness: 1.08, label: "Teaching & mentoring" },
+    trade: { income: 1.05, happiness: 1.0, label: "Craft / trade" },
+    business: { income: 1.18, happiness: 0.92, label: "Business" },
+    creative: { income: 0.88, happiness: 1.1, label: "Creative arts" },
+    care: { income: 0.9, happiness: 1.15, label: "Caregiving" },
+    leadership: { income: 1.12, happiness: 1.02, label: "Leadership" },
+    technical: { income: 1.2, happiness: 0.95, label: "Technical" },
+    athletic: { income: 0.92, happiness: 1.05, label: "Athletic" }
+};
+
+const TALENT_FOCUS_MODS = {
+    balanced: { income: 1.0, happiness: 1.05, health: 0 },
+    self: { income: 1.08, happiness: 0.88, health: -0.15 },
+    others: { income: 0.92, happiness: 1.18, health: 0.1 },
+    marketplace: { income: 1.15, happiness: 0.82, health: -0.25 },
+    ministry: { income: 0.78, happiness: 1.22, health: 0.15 },
+    family: { income: 0.85, happiness: 1.12, health: 0.2 }
+};
 
 /** Fast classroom projection: apply plan effects across working + retirement years. */
 function runClassroomProjection() {
@@ -3054,63 +3078,100 @@ function runClassroomProjection() {
     gameState = createDefaultGameState("classroom");
     gameState.spendingPlan = { spendPct: plan.spendPct, savePct: plan.savePct, sharePct: plan.sharePct };
     gameState.timePlan = plan.timePlan;
+    gameState.talentDomain = plan.talentDomain;
     gameState.talentFocus = plan.talentFocus;
 
-    // Map time plan into habit flags
     gameState.activeHabits.gym = plan.timePlan.fun >= 4;
     gameState.activeHabits.social = plan.timePlan.social >= 5;
     gameState.hasFour01k = plan.savePct >= 15;
     gameState.activeHabits.four01k = gameState.hasFour01k;
 
-    const annualGross = gameState.salary * 12;
-    let health = 78;
-    let happiness = 70;
-    let cash = gameState.wealth;
-    let portfolio = 0;
-    let debt = 5000; // modest starter debt
+    const domain = TALENT_DOMAIN_MODS[plan.talentDomain] || TALENT_DOMAIN_MODS.teaching;
+    const focus = TALENT_FOCUS_MODS[plan.talentFocus] || TALENT_FOCUS_MODS.balanced;
 
-    const sleepOk = plan.timePlan.sleep >= 49; // ~7h/night
+    // Calibrated: solid stewardship ~$1.5–3.5M lifetime score; neglect health/happiness and wealth alone underperforms
+    const baseAnnual = 38000;
+    let health = 74;
+    let happiness = 66;
+    let cash = 6000;
+    let portfolio = 1500;
+    let debt = 22000;
+
+    const sleepOk = plan.timePlan.sleep >= 49;
     const serveOk = plan.timePlan.serve >= 2;
     const learnOk = plan.timePlan.learn >= 3;
     const overwork = plan.timePlan.work > 50;
+    const underRest = plan.timePlan.sleep < 42;
     const shareOk = plan.sharePct >= 10;
-    const saveRate = plan.savePct / 100;
+    const saveRate = Math.min(0.4, plan.savePct / 100);
     const shareRate = plan.sharePct / 100;
+    const spendRate = plan.spendPct / 100;
+
+    let annualIncome = baseAnnual * domain.income * focus.income;
 
     for (let age = LIFE_START_AGE; age < LIFE_END_AGE; age += 1) {
         const working = age < WORK_END_AGE;
-        const income = working ? annualGross * (learnOk ? 1.02 : 1) * (overwork ? 1.08 : 1) : portfolio * 0.04;
+        const yearsWorked = Math.max(0, age - LIFE_START_AGE);
+
+        if (working) {
+            const growth = 1 + yearsWorked * (learnOk ? 0.014 : 0.007);
+            const overworkBump = overwork ? 1.05 : 1;
+            // Low health cuts earning power (David: body neglect costs income)
+            const healthPay = health < 35 ? 0.72 : (health < 50 ? 0.88 : 1);
+            annualIncome = baseAnnual * domain.income * focus.income * growth * overworkBump * healthPay;
+        }
+
+        const income = working ? annualIncome : Math.max(0, portfolio * 0.03);
         const giving = income * shareRate;
-        const saved = Math.max(0, (income - giving) * saveRate);
-        const spentPressure = plan.spendPct > 80 ? 1.15 : 1;
+        const afterGive = Math.max(0, income - giving);
+        const investable = afterGive * saveRate;
+        const lifestyleLeak = afterGive * spendRate * 0.12;
 
-        cash += saved * 0.35;
-        portfolio += saved * 0.65;
-        portfolio *= working ? 1.07 : 1.05;
-        cash *= 1.015;
-        debt = Math.max(0, debt * 1.03 - saved * 0.1);
-        cash -= giving * 0.05; // residual giving friction already mostly from income
+        cash += investable * 0.35 - lifestyleLeak;
+        portfolio += investable * 0.65;
 
-        // Health dynamics
-        if (!sleepOk || overwork) health -= 1.8;
-        else health += 0.4;
-        if (plan.timePlan.fun >= 4) health += 0.6;
-        else health -= 0.5;
+        portfolio *= working ? 1.045 : 1.03;
+        if (cash > 0) cash *= 1.01;
+        debt = Math.max(0, debt * 1.045 - investable * 0.1);
 
-        // Happiness: service & sharing last; consumption fades
-        if (serveOk) happiness += 1.2;
-        else happiness -= 1.4;
-        if (shareOk) happiness += 0.8;
-        if (plan.talentFocus === "others") happiness += 0.6;
-        else if (plan.talentFocus === "self") happiness -= 0.3;
-        if (plan.timePlan.social >= 6) happiness += 0.7;
-        if (plan.spendPct >= 85) happiness += 0.4 * spentPressure; // short burst then fade next years
-        happiness -= 0.35; // baseline fade without stewardship
+        // Medical / emptiness costs when pillars are neglected (wealth alone cannot buy a good life)
+        if (health < 40) {
+            cash -= 4500;
+            debt += 1800;
+            portfolio *= 0.985; // crisis forces asset sales / missed contributions
+        } else if (health < 55) {
+            cash -= 1600;
+        }
+        if (happiness < 35) {
+            cash -= 2800; // short-term coping spend that fades
+            portfolio *= 0.99;
+        }
 
-        if (working && learnOk) portfolio += annualGross * 0.01;
+        if (cash < 0) {
+            debt += Math.abs(cash);
+            cash = 0;
+        }
 
-        health = Math.max(5, Math.min(100, health));
-        happiness = Math.max(5, Math.min(100, happiness));
+        health += focus.health;
+        if (!sleepOk || overwork || underRest) health -= 1.9;
+        else health += 0.15;
+        if (plan.timePlan.fun >= 4) health += 0.35;
+        else health -= 0.7;
+        if (plan.timePlan.work > 55) health -= 1.0;
+
+        const hapLean = domain.happiness * focus.happiness;
+        happiness += (hapLean - 1) * 1.0;
+        if (serveOk) happiness += 0.75;
+        else happiness -= 1.35;
+        if (shareOk) happiness += 0.45;
+        else happiness -= 0.55;
+        if (plan.timePlan.social >= 6) happiness += 0.45;
+        else happiness -= 0.5;
+        if (spendRate >= 0.85) happiness += 0.25;
+        happiness -= 0.55;
+
+        health = Math.max(8, Math.min(95, health));
+        happiness = Math.max(8, Math.min(95, happiness));
 
         gameState.history.push({
             age,
@@ -3121,8 +3182,8 @@ function runClassroomProjection() {
     }
 
     gameState.age = LIFE_END_AGE;
-    gameState.health = health;
-    gameState.happiness = happiness;
+    gameState.health = Math.round(health);
+    gameState.happiness = Math.round(happiness);
     gameState.wealth = Math.round(cash);
     gameState.portfolio = Math.round(portfolio);
     gameState.debt = Math.round(debt);
