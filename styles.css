@@ -1,194 +1,102 @@
-/* Custom CSS styles for LifeForge Simulator */
+/* Stewardship Life — David Strege vision */
 
-/* Custom Animations */
-@keyframes float {
-    0%, 100% {
-        transform: translateY(0px) rotate(0deg);
-    }
-    50% {
-        transform: translateY(-8px) rotate(1deg);
-    }
+:root {
+  --health: #10b981;
+  --wealth: #d97706;
+  --happiness: #7c3aed;
+  --ink: #0b1220;
+  --panel: #111827;
+  --line: #1f2937;
 }
 
-@keyframes bounceSlow {
-    0%, 100% {
-        transform: translateY(0px);
-    }
-    50% {
-        transform: translateY(-4px);
-    }
+html, body {
+  height: 100%;
 }
 
-@keyframes pulseBorder {
-    0%, 100% {
-        border-color: rgba(16, 185, 129, 0.2);
-    }
-    50% {
-        border-color: rgba(16, 185, 129, 0.6);
-    }
+body {
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(16, 185, 129, 0.12), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(217, 119, 6, 0.1), transparent 50%),
+    radial-gradient(800px 500px at 50% 100%, rgba(124, 58, 237, 0.08), transparent 45%),
+    var(--ink);
 }
 
-@keyframes floatParticle {
-    0% {
-        transform: translateY(0px) scale(0.8);
-        opacity: 0;
-    }
-    15% {
-        opacity: 1;
-    }
-    100% {
-        transform: translateY(-80px) scale(1.1);
-        opacity: 0;
-    }
-}
-
-/* Character Idle Squish & Stretch */
-@keyframes squishStretch {
-    0%, 100% {
-        transform: scaleY(1) translateY(0);
-    }
-    50% {
-        transform: scaleY(0.95) scaleX(1.03) translateY(2px);
-    }
-}
-
-/* Apply animation utility classes */
-.animate-float {
-    animation: float 4s ease-in-out infinite;
-}
-
-.animate-bounce-slow {
-    animation: bounceSlow 3s ease-in-out infinite;
-}
-
-.animate-character {
-    animation: squishStretch 2s ease-in-out infinite;
-}
-
-/* Modals backdrop management */
 .modal-backdrop {
-    transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
+  transition: opacity 0.25s ease-out, visibility 0.25s ease-out;
 }
-
 .modal-backdrop.active {
-    opacity: 1;
-    pointer-events: auto;
+  opacity: 1;
+  pointer-events: auto;
 }
 
-/* Tab triggers styling */
-.active-tab {
-    background-color: #1E293B !important; /* bg-slate-800 */
-    color: #F8FAFC !important; /* text-slate-50 */
-    border: 1px solid rgba(148, 163, 184, 0.15);
-}
-
-/* Floating Particles Base Class */
-.floating-particle {
-    position: absolute;
-    animation: floatParticle 1.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-    pointer-events: none;
-    font-size: 1.25rem;
-    font-weight: bold;
-    z-index: 50;
-    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-}
-
-/* Scrollbar styling */
-.scrollbar-thin::-webkit-scrollbar {
-    width: 5px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 9999px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #475569;
-}
-
-/* Hover effects for decisions button options */
-.choice-btn {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 100%;
-    overflow-wrap: anywhere;
-}
-.choice-btn:hover {
-    transform: translateX(4px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-#active-event-card,
-#active-event-card > *,
-#event-choices-container,
-#decision-mechanics-panel {
-    max-width: 100%;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-/* Highlight low states */
-.danger-flash {
-    animation: dangerShake 0.4s ease-in-out infinite alternate;
-    box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
-    border-color: rgba(239, 68, 68, 0.6) !important;
-}
-
-@keyframes dangerShake {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(-2px); }
-}
-
-/* Speech/Thought bubble cloud styles */
-.speech-cloud {
-    transition: all 0.2s ease-out;
-    transform: translateY(5px);
-}
-.group:hover .speech-cloud {
-    display: block !important;
-    transform: translateY(0);
-}
-
-/* Weather animations on scenery background */
-.weather-season-winter {
-    background: linear-gradient(to bottom, #0f172a, #1a2e40) !important;
-}
-.weather-season-autumn {
-    background: linear-gradient(to bottom, #111827, #2d261e) !important;
-}
-.weather-season-summer {
-    background: linear-gradient(to bottom, #0c4a6e, #1e1b4b) !important;
-}
-.weather-season-spring {
-    background: linear-gradient(to bottom, #111c44, #0f172a) !important;
-}
-
-/* Health / Happiness percentage wheels */
 .stat-wheel {
-    --wheel-pct: 50;
-    --wheel-color: #10B981;
-    width: 3.25rem;
-    height: 3.25rem;
-    border-radius: 9999px;
-    background: conic-gradient(var(--wheel-color) calc(var(--wheel-pct) * 1%), #1e293b 0);
-    display: grid;
-    place-items: center;
-    position: relative;
-    flex-shrink: 0;
+  --wheel-pct: 50;
+  --wheel-color: var(--health);
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  background: conic-gradient(var(--wheel-color) calc(var(--wheel-pct) * 1%), #1e293b 0);
+  display: grid;
+  place-items: center;
+  position: relative;
+  flex-shrink: 0;
 }
 .stat-wheel::before {
-    content: "";
-    position: absolute;
-    inset: 5px;
-    border-radius: 9999px;
-    background: #0f172a;
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: #0f172a;
 }
 .stat-wheel-value {
-    position: relative;
-    z-index: 1;
-    font-size: 0.65rem;
-    font-weight: 800;
-    color: #f8fafc;
-    font-variant-numeric: tabular-nums;
+  position: relative;
+  z-index: 1;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
 }
+
+.scrollbar-thin::-webkit-scrollbar { width: 5px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+
+.choice-card {
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.choice-card:hover {
+  transform: translateY(-1px);
+}
+
+.danger-flash {
+  animation: dangerPulse 0.8s ease-in-out infinite alternate;
+  border-color: rgba(239, 68, 68, 0.55) !important;
+}
+@keyframes dangerPulse {
+  from { box-shadow: 0 0 0 rgba(239, 68, 68, 0); }
+  to { box-shadow: 0 0 14px rgba(239, 68, 68, 0.25); }
+}
+
+.wizard-step-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #334155;
+}
+.wizard-step-dot.active { background: #14b8a6; }
+.wizard-step-dot.done { background: #64748b; }
+
+.opp-visual {
+  background-size: cover;
+  background-position: center;
+  min-height: 7rem;
+}
+
+@keyframes floatIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.float-in { animation: floatIn 0.35s ease-out; }
