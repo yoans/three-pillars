@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 selection:bg-teal-500 selection:text-white">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LifeForge (archive) — weird Game of Life prototype</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            health: '#10B981', // green-500
+                            wealth: '#F59E0B', // amber-500
+                            happiness: '#8B5CF6', // violet-500
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                    },
+                    screens: {
+                        'xs': '440px',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for gorgeous icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom styling stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="h-full flex flex-col font-sans overflow-x-hidden antialiased bg-slate-950 text-slate-200">
+
+    <!-- Archive banner: return to David's vision hub -->
+    <div class="bg-rose-950/40 border-b border-rose-900/50 px-4 py-2 shrink-0 z-40">
+        <div class="max-w-2xl mx-auto flex items-center justify-between gap-3 text-[11px]">
+            <span class="text-rose-200/90"><span class="font-black uppercase tracking-wider text-rose-300">Archive</span> · My weird Game of Life prototype (LifeForge)</span>
+            <a href="../index.html" class="shrink-0 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-teal-300 font-bold uppercase tracking-wide hover:border-teal-500/40">← Stewardship Life</a>
+        </div>
+    </div>
+
+    <!-- Combined Premium Sticky Header -->
+    <header class="bg-slate-950/95 backdrop-blur-md border-b border-slate-900 sticky top-0 z-30 shadow-lg shrink-0">
+        <!-- Row 1: Brand & Interactive Engine Commands & Season -->
+        <div class="border-b border-slate-900/60 px-4 py-3">
+            <div class="max-w-2xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- Branding & Engine Status -->
+                <div class="flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-2.5">
+                        <div class="h-8 w-8 rounded-lg bg-gradient-to-tr from-emerald-500 via-amber-500 to-violet-600 flex items-center justify-center shadow-lg shadow-teal-500/10">
+                            <i class="fa-solid fa-shapes text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-xs font-black tracking-tight text-white flex items-center gap-1.5">
+                                LifeForge <span class="text-[8px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 font-medium tracking-normal border border-slate-800">MOBILE MVP</span>
+                            </h1>
+                            <div class="text-[9px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
+                                <span class="relative flex h-1.5 w-1.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-teal-500"></span>
+                                </span>
+                                Turn: <span id="engine-status-text" class="text-teal-300 font-extrabold uppercase">READY</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Season indicator displays near the commands -->
+                    <div class="flex items-center gap-1.5 bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-855">
+                        <span class="text-slate-400 text-[8.5px] uppercase font-bold tracking-wider">Season:</span>
+                        <span id="player-season" class="font-extrabold text-amber-500 text-xs">Spring</span>
+                    </div>
+                </div>
+
+                <!-- Turn command center in header -->
+                <div class="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-start">
+                    <!-- Manual Next Season button -->
+                    <button id="btn-force-season" class="px-3.5 py-2 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-[10px] font-black border border-teal-300/30 transition active:scale-95 flex items-center gap-1.5 shadow-md shadow-teal-500/15 shrink-0 uppercase tracking-wide">
+                        <i class="fa-solid fa-forward-step"></i> Next Season
+                    </button>
+
+                    <!-- Guide & Restart Shortcuts -->
+                    <div class="flex items-center gap-1 shrink-0">
+                        <a href="game-info.html" class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-teal-300 border border-slate-850 text-[10px] inline-flex items-center justify-center" title="Game Design and Life Event Guide">
+                            <i class="fa-solid fa-circle-info"></i>
+                        </a>
+                        <button id="btn-show-guide" class="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-indigo-300 border border-slate-850 text-[10px]" title="How to Play Guide">
+                            <i class="fa-solid fa-graduation-cap"></i>
+                        </button>
+                        <button id="btn-restart" class="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950/30 text-rose-450 border border-slate-850 text-[10px]" title="Reset Game">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2: Two-line status HUD with no horizontal overflow -->
+        <div class="bg-slate-950/80 border-t border-slate-900 px-4 py-2 text-xs">
+            <div class="max-w-2xl mx-auto grid grid-cols-1 gap-1.5">
+                <!-- Age & Net Worth standard core dashboard indicators -->
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <div class="min-w-0 inline-flex items-center gap-1.5 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px]">
+                        <span class="text-slate-500 font-extrabold text-[8px] uppercase tracking-wider">Age</span>
+                        <span id="player-age" class="font-extrabold text-white tabular-nums">18.00</span>
+                    </div>
+                    <div class="min-w-0 inline-flex items-center gap-1.5 bg-slate-900 px-2.5 py-1.5 rounded-xl border border-slate-800 text-[10px] font-mono">
+                        <span class="text-slate-500 font-extrabold text-[8px] uppercase tracking-wider font-sans">Net</span>
+                        <span id="hud-net-worth" class="font-black text-emerald-400 truncate">$5,000</span>
+                    </div>
+                </div>
+
+                <!-- Life view of housing, commute, career near Age & Net Worth -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <!-- Housing Badge -->
+                    <div id="visual-home" class="min-w-0 flex items-center gap-1.5 bg-slate-900/80 hover:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 text-[10px] cursor-help" onclick="triggerSceneDialogue('home')">
+                        <span class="lifestyle-emoji flex-none">🏢</span>
+                        <span class="min-w-0 flex flex-col leading-tight">
+                            <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider">Housing</span>
+                            <span id="home-status-label" class="font-bold text-teal-400 truncate">Shared Flat</span>
+                        </span>
+                    </div>
+                    
+                    <!-- Commute Badge -->
+                    <div id="visual-transport" class="min-w-0 flex items-center gap-1.5 bg-slate-900/80 hover:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 text-[10px] cursor-help" onclick="triggerSceneDialogue('transport')">
+                        <span class="lifestyle-emoji flex-none">🚶</span>
+                        <span class="min-w-0 flex flex-col leading-tight">
+                            <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider">Commute</span>
+                            <span id="transport-status-label" class="font-bold text-teal-400 truncate">Walking</span>
+                        </span>
+                    </div>
+
+                    <!-- Career/Occupation Badge -->
+                    <div id="visual-work" class="min-w-0 flex items-center gap-1.5 bg-slate-900/80 hover:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 text-[10px] cursor-help" onclick="triggerSceneDialogue('work')">
+                        <span class="lifestyle-emoji flex-none">🎓</span>
+                        <span class="min-w-0 flex flex-col leading-tight">
+                            <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider">Role</span>
+                            <span id="work-status-label" class="font-bold text-teal-400 truncate">Student life</span>
+                        </span>
+                    </div>
+
+                    <!-- Character Self & Habits -->
+                    <div id="visual-character" class="min-w-0 flex items-center justify-between gap-1.5 bg-slate-900/80 hover:bg-slate-900 px-2 py-1.5 rounded-xl border border-slate-800 text-[10px] cursor-help" onclick="triggerCharacterDialogue()">
+                        <span class="flex items-center gap-1.5 min-w-0">
+                            <span class="lifestyle-emoji text-xs leading-none animate-character flex-none">🧑‍🎓</span>
+                            <span class="min-w-0 flex flex-col leading-tight">
+                                <span class="font-extrabold text-slate-500 text-[7.5px] uppercase tracking-wider truncate">Habits</span>
+                                <span id="habit-summary-label" class="font-bold text-violet-300 truncate">0 active · $0/mo</span>
+                            </span>
+                        </span>
+                        <div class="flex gap-0.5 items-center bg-slate-950 py-0.5 px-1.5 rounded-lg border border-slate-800 flex-none" id="habit-icons-wrap" title="Open Budget to change habits">
+                            <span id="active-habits-1" class="text-[9px] opacity-30 grayscale leading-none" title="Nutrition">🥗</span>
+                            <span id="active-habits-3" class="text-[9px] opacity-30 grayscale leading-none" title="Socialization">👥</span>
+                            <span id="active-habits-2" class="text-[9px] opacity-30 grayscale leading-none" title="Fitness">🏋️</span>
+                            <span id="active-habits-4" class="text-[9px] opacity-30 grayscale leading-none" title="Comfort">📺</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden tool elements & feedback nodes required to make app.js completely error-free -->
+        <div id="world-sky" class="hidden"></div>
+        <div id="scenery-particles" class="hidden"></div>
+        <div id="visual-particle-spawner" class="absolute inset-0 pointer-events-none z-50"></div>
+        <div id="cloud-home" class="hidden"></div>
+        <div id="cloud-transport" class="hidden"></div>
+        <div id="cloud-work" class="hidden"></div>
+        <div id="character-chat" class="hidden"></div>
+        <div id="scenery-panel" class="hidden"></div>
+        <div id="scenery-visual-canvas" class="hidden"></div>
+    </header>
+
+    <!-- Main Content Container: Mobile-First Single-Column Wrapper -->
+    <main class="flex-1 max-w-2xl mx-auto w-full p-4 flex flex-col gap-4 overflow-y-auto scrollbar-thin">
+
+        <!-- ================= SECTION: INFO BANNER TOST CHAT DESCRIPTIONS ================= -->
+        <div id="chat-toast-notifications" class="bg-indigo-950/25 border border-indigo-900/40 rounded-2xl p-3 flex gap-2.5 items-start text-xs relative select-none min-h-[68px]">
+            <span id="guide-panel-icon" class="text-indigo-400 mt-0.5 flex-none"><i class="fa-solid fa-scale-balanced"></i></span>
+            <div class="flex-1 min-w-0 text-[11px] text-indigo-200 leading-normal">
+                <div id="guide-panel-title" class="text-[9px] uppercase tracking-widest font-black text-indigo-300 mb-0.5">Rulebook</div>
+                <div id="guide-panel-text" class="leading-relaxed">Choose the active life moment first. When no choice is pending, press <strong>Next Season</strong>. Open Budget to adjust recurring habits before advancing.</div>
+            </div>
+        </div>
+
+        <!-- ================= SECTION: THREE CORE PILLARS OVERVIEW ================= -->
+        <section class="grid grid-cols-3 gap-2 bg-slate-950/80 border border-slate-900 rounded-3xl p-3 shadow-lg shrink-0">
+            
+            <!-- Health Card -->
+            <div id="pillar-health-card" onclick="toggleDiagnosticPanel('health')" class="cursor-pointer bg-slate-900/80 border border-slate-800/60 hover:border-emerald-500/50 transition-all rounded-2xl p-2.5 flex flex-col gap-1.5 relative overflow-hidden">
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-extrabold text-emerald-555 tracking-wider flex items-center gap-1">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                        HEALTH
+                    </span>
+                    <span id="val-health" class="text-[11px] font-black text-white">80/100</span>
+                </div>
+                <!-- Mini Vitality Bar -->
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden p-[1px] border border-slate-750">
+                    <div id="bar-health" class="bg-gradient-to-r from-emerald-600 to-teal-400 h-full rounded-full transition-all duration-500" style="width: 80%"></div>
+                </div>
+                <!-- Descriptor -->
+                <div class="flex justify-between items-center text-[7.5px] text-slate-400 select-none">
+                    <span id="desc-health" class="truncate">Fit & Focused</span>
+                    <span id="change-health" class="font-extrabold text-emerald-400"></span>
+                </div>
+            </div>
+
+            <!-- Wealth Card -->
+            <div id="pillar-wealth-card" onclick="toggleDiagnosticPanel('wealth')" class="cursor-pointer bg-slate-900/80 border border-slate-800/60 hover:border-amber-500/50 transition-all rounded-2xl p-2.5 flex flex-col gap-1.5 relative overflow-hidden">
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-extrabold text-amber-500 tracking-wider flex items-center gap-1">
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        WEALTH
+                    </span>
+                    <span id="val-wealth" class="text-[11px] font-black text-white">50/100</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden p-[1px] border border-slate-750">
+                    <div id="bar-wealth" class="bg-gradient-to-r from-amber-600 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 50%"></div>
+                </div>
+                <div class="flex justify-between items-center text-[7.5px] text-slate-400 select-none">
+                    <span id="desc-wealth" class="truncate">Balanced Ledger</span>
+                    <span id="change-wealth" class="font-extrabold text-amber-500"></span>
+                </div>
+            </div>
+
+            <!-- Happiness/Joy Card -->
+            <div id="pillar-happiness-card" onclick="toggleDiagnosticPanel('happiness')" class="cursor-pointer bg-slate-900/80 border border-slate-800/60 hover:border-violet-500/50 transition-all rounded-2xl p-2.5 flex flex-col gap-1.5 relative overflow-hidden">
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] font-extrabold text-violet-400 tracking-wider flex items-center gap-1">
+                        <span class="h-1.5 w-1.5 rounded-full bg-violet-400 animate-pulse"></span>
+                        JOY
+                    </span>
+                    <span id="val-happiness" class="text-[11px] font-black text-white">75/100</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden p-[1px] border border-slate-750">
+                    <div id="bar-happiness" class="bg-gradient-to-r from-violet-600 to-fuchsia-400 h-full rounded-full transition-all duration-500" style="width: 75%"></div>
+                </div>
+                <div class="flex justify-between items-center text-[7.5px] text-slate-400 select-none">
+                    <span id="desc-happiness" class="truncate">Feeling Good</span>
+                    <span id="change-happiness" class="font-extrabold text-violet-400"></span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECTION: BOTTOM COCKPIT HUD TABS ================= -->
+        <nav class="bg-slate-950 border border-slate-900 rounded-2xl p-1 shadow-lg shrink-0">
+            <div class="grid grid-cols-5 gap-0.5">
+                <button id="tab-btn-decisions" class="tab-btn text-[9px] font-extrabold py-2.5 text-center rounded-xl transition duration-150 active-tab flex flex-col items-center gap-1" onclick="switchTab('decisions')">
+                    <i class="fa-solid fa-gavel text-xs"></i> Choices
+                </button>
+                <button id="tab-btn-budget" class="tab-btn text-[9px] font-extrabold py-2.5 text-center rounded-xl text-slate-400 hover:text-white transition duration-150 flex flex-col items-center gap-1" onclick="switchTab('budget')">
+                    <i class="fa-solid fa-wallet text-xs"></i> Budget
+                </button>
+                <button id="tab-btn-portfolio" class="tab-btn text-[9px] font-extrabold py-2.5 text-center rounded-xl text-slate-400 hover:text-white transition duration-150 flex flex-col items-center gap-1" onclick="switchTab('portfolio')">
+                    <i class="fa-solid fa-chart-line text-xs"></i> Assets
+                </button>
+                <button id="tab-btn-history" class="tab-btn text-[9px] font-extrabold py-2.5 text-center rounded-xl text-slate-400 hover:text-white transition duration-150 flex flex-col items-center gap-1" onclick="switchTab('history')">
+                    <i class="fa-solid fa-compass-drafting text-xs"></i> Graphs
+                </button>
+                <button id="tab-btn-logs" class="tab-btn relative text-[9px] font-extrabold py-2.5 text-center rounded-xl text-slate-400 hover:text-white transition duration-150 flex flex-col items-center gap-1" onclick="switchTab('logs')">
+                    <span id="journal-unread-badge" class="hidden absolute right-1 top-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[8px] font-black leading-4 shadow">0</span>
+                    <i class="fa-solid fa-clipboard-list text-xs"></i> Journal
+                </button>
+            </div>
+        </nav>
+
+        <!-- ================= SECTION: DYNAMIC SELECTED TAB VIEW AREA (EXPANDABLE) ================= -->
+        <section class="bg-slate-900/60 border border-slate-900 rounded-3xl p-4 min-h-[360px] h-auto shadow-2xl flex flex-col">
+            
+            <!-- ====== TAB 1: DECISIONS (DEFAULT DETAILED ACTIVE PANEL - AUTO EXPANDABLE) ====== -->
+            <div id="tab-decisions" class="tab-pane flex flex-col gap-4 min-w-0">
+                <div id="active-event-card" class="w-full flex flex-col gap-4 select-none opacity-0 translate-y-2 transition-all duration-300 min-w-0">
+                    
+                    <!-- Player-led milestone banner -->
+                    <div id="decision-milestone-banner" class="hidden bg-teal-500/10 border border-teal-500/25 px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-xs transition duration-300">
+                        <span class="text-teal-300 font-extrabold flex items-center gap-1.5 tracking-wider uppercase text-[10px]">
+                            <i class="fa-solid fa-sparkles"></i> Life Moment
+                        </span>
+                        <span id="decision-ready-label" class="bg-slate-950 text-teal-200 border border-teal-500/20 font-black px-2 py-0.5 rounded-lg text-[9px] tracking-wide shadow text-right">Choose when ready</span>
+                    </div>
+
+                    <!-- Speaker Advisor Identity Card -->
+                    <div class="flex gap-3 items-start bg-slate-950/45 p-4 rounded-2xl border border-slate-850/80">
+                        <div class="h-12 w-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-3xl shadow-inner flex-shrink-0" id="event-avatar">🏢</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-1.5">
+                                <span class="font-extrabold text-xs text-slate-200 truncate" id="event-speaker">Counselor</span>
+                                <span class="text-[8px] uppercase tracking-widest font-black text-amber-500 px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/25" id="event-tag">TAG</span>
+                            </div>
+                            <h4 class="font-extrabold text-white text-base mt-0.5 leading-snug" id="event-title">Event Option Title</h4>
+                            <p class="text-xs text-slate-400 mt-1 leading-normal" id="event-description">Event narrative text. Make your decision carefully.</p>
+                        </div>
+                    </div>
+
+                    <!-- Literacy Advice Information box -->
+                    <div id="literacy-helper" class="bg-indigo-950/20 border border-indigo-900/30 rounded-xl p-3 flex gap-2.5 items-start text-xs min-w-0">
+                        <span class="text-indigo-400 mt-1"><i class="fa-solid fa-graduation-cap"></i></span>
+                        <div class="flex-1 text-[11px] text-indigo-200 leading-normal" id="event-literacy">
+                            <strong>Human Capital:</strong> Higher skills increase income thresholds.
+                        </div>
+                    </div>
+
+                    <!-- Exposed mechanics snapshot for the active decision -->
+                    <div id="decision-mechanics-panel" class="bg-slate-950/55 border border-slate-800 rounded-2xl p-3 text-[10px] text-slate-300 leading-normal min-w-0 overflow-hidden">
+                        <!-- Filled by app.js -->
+                    </div>
+
+                    <!-- Injected Choice Action trigger buttons - EXPANDS AUTOMATICALLY -->
+                    <div class="flex flex-col gap-2.5 min-w-0" id="event-choices-container">
+                        <!-- Filled by app.js -->
+                    </div>
+                </div>
+
+                <!-- Empty State Fallback -->
+                <div id="empty-queue-message" class="flex-1 flex flex-col items-center justify-center text-center gap-2.5 py-10">
+                    <div class="h-12 w-12 rounded-full bg-slate-950 border border-slate-855 flex items-center justify-center text-slate-500 text-lg shadow-inner">
+                        <i class="fa-solid fa-hourglass-empty text-base"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-300 text-sm">Season Complete</h4>
+                        <p class="text-[11px] text-slate-500 mt-0.5 max-w-[260px] mx-auto">Proceed to the next season and see what life brings next. New milestones, luck events, and opportunities can appear as your story moves forward.</p>
+                        <button onclick="forceManualTick()" class="mt-2 px-3 py-2 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/25 text-[10px] font-black uppercase tracking-wider transition active:scale-95">
+                            <i class="fa-solid fa-forward-step mr-1"></i> Next Season
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Hidden legacy cards count container -->
+                <div class="hidden"><span id="cards-remaining">0</span></div>
+            </div>
+
+            <!-- ====== TAB 2: BUDGET & RECURRING LEDGER ====== -->
+            <div id="tab-budget" class="tab-pane hidden flex flex-col gap-3.5 h-full bg-slate-950/20 p-1.5 rounded-2xl">
+                <!-- Budget Net Cash flow card -->
+                <div class="bg-slate-950 border border-slate-900 rounded-2xl p-4 flex flex-col gap-1.5 font-sans">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-slate-400 uppercase tracking-widest font-black flex items-center gap-1.5">
+                            <i class="fa-solid fa-sack-dollar text-emerald-400"></i> Net Monthly Cash Flow
+                        </span>
+                        <span id="budget-net-flow" class="text-sm font-black text-emerald-400">+$2,400</span>
+                    </div>
+                    <!-- Deficit warning block -->
+                    <div id="budget-warning" class="hidden text-[10px] text-rose-300 bg-rose-950/20 border border-rose-900/30 p-2 rounded-xl flex items-center gap-1.5">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-450 animate-pulse"></i>
+                        <span><strong>DEFICIT WARNING:</strong> Sinking Cash flow! Adjust lifestyles or secure employment immediately.</span>
+                    </div>
+                </div>
+
+                <!-- Breakdown Lists -->
+                <div class="flex flex-col gap-2">
+                    <span class="text-[9px] text-slate-400 font-extrabold tracking-wider uppercase">Active Financial Ledger</span>
+                    <div class="space-y-1.5 bg-slate-950/40 p-3 rounded-2xl border border-slate-850/80">
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-emerald-500 rounded-full"></span>Income Base (Salary)</span>
+                            <span id="budget-salary" class="font-bold text-slate-100">$2,400 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-emerald-555 rounded-full"></span>Asset Compound Profit</span>
+                            <span id="budget-investment-income" class="font-bold text-emerald-400 font-medium">+$0 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Rent Expense</span>
+                            <span id="budget-rent" class="font-bold text-rose-300">-$600 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Food & Diet Cost</span>
+                            <span id="budget-food" class="font-bold text-rose-300">-$150 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Transit Commute</span>
+                            <span id="budget-transport" class="font-bold text-slate-300">-$0 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Debt Interest Fees</span>
+                            <span id="budget-debt-interest" class="font-bold text-rose-450 font-mono font-medium">-$50 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs pb-1 border-b border-slate-855/40">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Gym & Wellbeing</span>
+                            <span id="budget-health" class="font-bold text-slate-300">-$0 /mo</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400 flex items-center gap-1.5"><span class="h-1.5 w-1.5 bg-rose-555 rounded-full"></span>Comfort & Outings</span>
+                            <span id="budget-social" class="font-bold text-slate-300">-$0 /mo</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Career and Lifestyle Active Knobs -->
+                <div class="flex flex-col gap-2.5">
+                    <span class="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider">Lifestyle Adjustments & Careers</span>
+                    
+                    <!-- Career management buttons -->
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <button onclick="toggleActiveJob()" class="p-2.5 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl flex items-center justify-between transition text-[10px] font-semibold active:scale-[97%] leading-normal">
+                            <span>💼 Leave/Quit active Job</span>
+                            <i class="fa-solid fa-circle-minus text-indigo-400 text-xs"></i>
+                        </button>
+                        <button onclick="toggleSideHustle()" class="p-2.5 bg-slate-900 border border-slate-800 text-slate-100 rounded-xl flex items-center justify-between transition text-[10px] font-semibold active:scale-[97%] leading-normal">
+                            <span>🚀 Night Side Hustle gig</span>
+                            <i class="fa-solid fa-bolt text-indigo-455 text-xs"></i>
+                        </button>
+                    </div>
+
+                    <!-- Habits Knobs -->
+                    <div class="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs">
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-850 rounded-xl flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-slate-300 text-[10px] font-bold">Gym Program</span>
+                                <span id="gym-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
+                                <span>$60/mo · +2 health/season · +1 joy</span>
+                                <button id="toggle-gym-btn" onclick="toggleGymHabit()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition">Join</button>
+                            </div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-850 rounded-xl flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-slate-300 text-[10px] font-bold">Whole-Food Prep</span>
+                                <span id="organic-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
+                                <span>$300/mo · +1.5 health/season · +0.75 joy</span>
+                                <button id="toggle-organic-btn" onclick="toggleOrganicFood()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-emerald-500/25 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition">Set Up</button>
+                            </div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-850 rounded-xl flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-slate-300 text-[10px] font-bold">Streaming Comfort</span>
+                                <span id="streaming-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
+                                <span>$15/mo · small recurring comfort boost</span>
+                                <button id="toggle-streaming-btn" onclick="toggleLuxuryStreaming()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition">Activate</button>
+                            </div>
+                        </div>
+                        <div class="p-2.5 bg-slate-950/60 border border-slate-850 rounded-xl flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-slate-300 text-[10px] font-bold">Weekend Outings</span>
+                                <span id="roadtrip-status" class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-slate-900 text-slate-400 border border-slate-800">Inactive</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 text-[9px] text-slate-500">
+                                <span>$100/mo · +4 joy/season social recovery</span>
+                                <button id="toggle-roadtrip-btn" onclick="toggleRoadtrips()" class="px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border border-violet-500/25 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 transition">Plan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== TAB 3: ASSETS, LIABILITIES & PORTFOLIO BUILD ====== -->
+            <div id="tab-portfolio" class="tab-pane hidden flex flex-col gap-4 h-full justify-between">
+                <div class="flex flex-col gap-3.5">
+                    
+                    <!-- Checking liquidity card -->
+                    <div class="bg-slate-955/80 border border-slate-900 rounded-2xl p-4 flex flex-col gap-1">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                                <i class="fa-solid fa-wallet text-slate-500"></i> Cash & High Yield Savings
+                            </span>
+                            <span id="asset-savings" class="text-base font-black text-slate-100 font-mono">$5,000</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[8.5px] text-slate-500 w-full">
+                            <span>Liquid Emergency fund yield: <strong class="text-emerald-400">2.0%</strong></span>
+                            <span>Standard checking</span>
+                        </div>
+                    </div>
+
+                    <!-- Stock Market S&P investments -->
+                    <div class="bg-slate-955/80 border border-slate-900 rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-emerald-450 font-extrabold uppercase tracking-widest flex items-center gap-1">
+                                <i class="fa-solid fa-chart-line text-emerald-450 animate-pulse"></i> S&P 500 Broad Stock Equity
+                            </span>
+                            <span id="asset-portfolio" class="text-base font-black text-emerald-400 font-mono">$0</span>
+                        </div>
+                        <p class="text-[8.5px] text-slate-500 leading-normal">
+                            Long-term compounding target asset. Yield returns avg <strong class="text-emerald-455">8.0%</strong> annually. Subject to typical market corrections and capital taxes of 5%.
+                        </p>
+                        <!-- Investing controls buttons -->
+                        <div class="grid grid-cols-2 gap-2 mt-1">
+                            <button onclick="interactWealth('invest', 500)" class="text-[10px] bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 py-2.5 rounded-lg font-black uppercase tracking-wider transition active:scale-95 text-center">
+                                Invest $500 Cash
+                            </button>
+                            <button onclick="interactWealth('sell_portfolio', 500)" class="text-[10px] bg-slate-900 hover:bg-slate-850 text-slate-300 border border-slate-800 py-2.5 rounded-lg font-black uppercase tracking-wider transition active:scale-95 text-center">
+                                Sell Stocks $500
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Liabilities Outstanding debts -->
+                    <div class="bg-slate-955/80 border border-slate-900 rounded-2xl p-4 flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] text-rose-455 font-black uppercase tracking-widest flex items-center gap-1">
+                                <i class="fa-solid fa-building-columns text-rose-555"></i> Debt Balance
+                            </span>
+                            <span id="asset-debt" class="text-base font-black text-rose-450 font-mono">-$0</span>
+                        </div>
+                        <p class="text-[8.5px] text-slate-500 leading-normal">
+                            This balance charges interest each season. Student-rate debt starts low; cash shortfalls can push the APR to high-interest credit. If APR is above your expected investment return, debt payoff may be the stronger move.
+                        </p>
+                        <button onclick="interactWealth('pay_debt', 1000)" class="w-full text-[10px] bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 py-2.5 rounded-lg font-black uppercase tracking-wider transition active:scale-95 text-center">
+                            Pay Down $1,000 Debt
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tiny Compounding info notes -->
+                <div class="bg-indigo-950/15 border border-indigo-900/30 rounded-2xl p-3 text-[9px] text-indigo-300 leading-relaxed mt-3 shrink-0">
+                    <strong>How to read this tab:</strong> Cash is your emergency buffer, stocks grow at the long-term return rate, and debt charges interest every season. If debt APR is higher than your stock return, paying debt is often the stronger move.
+                </div>
+            </div>
+
+            <!-- ====== TAB 4: VISUAL GRAPH PLOT ====== -->
+            <div id="tab-history" class="tab-pane hidden flex flex-col gap-3 h-full">
+                <span class="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Historical Pillar Scores (0-100 scale)</span>
+                
+                <!-- SVG Vector Plot Canvas -->
+                <div class="relative bg-slate-950 border border-slate-900 rounded-2xl p-3.5 flex-1 flex flex-col min-h-[220px]">
+                    <svg id="chart-svg" class="w-full h-full flex-1 min-h-[160px]" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        <g id="chart-grid" opacity="0.1">
+                            <line x1="0" y1="25" x2="100" y2="25" stroke="white" stroke-dasharray="2" />
+                            <line x1="0" y1="50" x2="100" y2="50" stroke="white" stroke-dasharray="2" />
+                            <line x1="0" y1="75" x2="100" y2="75" stroke="white" stroke-dasharray="2" />
+                        </g>
+                        <path id="chart-path-health" d="" fill="none" class="stroke-emerald-400" stroke-width="2.5" />
+                        <path id="chart-path-wealth" d="" fill="none" class="stroke-amber-400" stroke-width="2.5" />
+                        <path id="chart-path-happiness" d="" fill="none" class="stroke-violet-400" stroke-width="2.5" />
+                    </svg>
+                    
+                    <!-- Graph Legend elements -->
+                    <div class="flex justify-around items-center text-[10px] mt-2 pt-2 border-t border-slate-900 shrink-0">
+                        <span class="flex items-center gap-1.5"><strong class="h-2 w-2 rounded-full bg-emerald-500"></strong> Health</span>
+                        <span class="flex items-center gap-1.5"><strong class="h-2 w-2 rounded-full bg-amber-500"></strong> Wealth</span>
+                        <span class="flex items-center gap-1.5"><strong class="h-2 w-2 rounded-full bg-violet-500"></strong> Joy</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ====== TAB 5: EVENT LOG TIMELINE ====== -->
+            <div id="tab-logs" class="tab-pane hidden flex flex-col gap-2 h-full">
+                <div class="flex justify-between items-center border-b border-slate-900 pb-2 mb-1.5 shrink-0">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-clipboard-list text-slate-500"></i> Event Logs & milestone journal
+                    </span>
+                    <button id="btn-clear-logs" class="text-[8.5px] text-slate-500 hover:text-slate-350 transition uppercase font-extrabold tracking-widest">Clear</button>
+                </div>
+                <!-- Dynamic Log messages spawner -->
+                <div id="journal-logs-container" class="flex-1 overflow-y-auto max-h-[250px] flex flex-col gap-2 pr-1 select-text scrollbar-thin text-xs">
+                    <div class="text-[11px] text-indigo-300 leading-snug">
+                        <span class="font-bold text-slate-500">Age 18.0:</span> Handcrafted story initialization started.
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer Copyright info -->
+    <footer class="bg-slate-950 border-t border-slate-900 px-4 py-3 text-center shrink-0 select-none">
+        <p class="text-[9px] text-slate-600 font-sans">LifeForge Prototype - Interactive mobile-first visual budget and compound simulator. Free to play.</p>
+    </footer>
+
+
+    <!-- ================= MODALS, DRAWERS & FLOATING DIALOGUES ================= -->
+
+    <!-- Global Diagnostics Drawer Panel (Triggered by Clicking Pillar Cards) -->
+    <div id="panel-dynamics-drawer" class="hidden fixed bottom-0 inset-x-0 bg-slate-900 border-t border-slate-800 rounded-t-3xl shadow-2xl z-40 p-5 transform transition-all duration-300">
+        <div class="max-w-2xl mx-auto relative pb-2 pb-safe">
+            <!-- Close [x] button -->
+            <button onclick="toggleDiagnosticPanel(null)" class="absolute -top-1.5 right-1.5 text-slate-400 hover:text-white transition p-1">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center gap-2 mb-3">
+                <div class="h-6 w-6 rounded bg-teal-500/20 flex items-center justify-center text-teal-400 text-xs">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                </div>
+                <h4 class="text-xs font-black tracking-wider text-slate-200 uppercase">Diagnostic Pillar Analysis</h4>
+            </div>
+            <!-- Dynamic descriptions will be written here -->
+            <div id="drawer-description" class="text-xs text-slate-300 leading-relaxed pr-6 bg-transparent">
+                Pillar details...
+            </div>
+        </div>
+    </div>
+
+    <!-- LITERACY LEXICON GUIDE MODAL -->
+    <div id="modal-literacy" class="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300 font-sans">
+        <div class="bg-slate-905 border border-slate-850 rounded-3xl max-w-md w-full p-5 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button class="absolute top-4 right-4 text-slate-450 hover:text-white transition" onclick="toggleModal('modal-literacy', false)">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center gap-2.5 mb-3.5 border-b border-slate-855 pb-2.5">
+                <h3 class="text-sm font-black bg-gradient-to-r from-emerald-400 to-amber-400 bg-clip-text text-transparent flex items-center gap-1.5">
+                    <i class="fa-solid fa-graduation-cap"></i> Financial Literacy Lexicon
+                </h3>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-3 text-xs text-slate-300 leading-relaxed pr-1 scrollbar-thin text-justify">
+                <div>
+                    <h4 class="font-extrabold text-white text-[11px] mb-0.5 text-emerald-400">1. Compound Interest: The Double-Edged Sword</h4>
+                    <p class="text-[11px]">Compounding calculates interest over previous accumulated interest. When you hold debt (like credit card lines or high student loans), high compounding interest acts as direct negative drag, trapping you in permanent budgeting cycles.</p>
+                </div>
+                <div>
+                    <h4 class="font-extrabold text-white text-[11px] mb-0.5 text-amber-500">2. Assets vs. Liabilities</h4>
+                    <p class="text-[11px]">An Asset yields financial resources returning into your wallet (like index fund stocks, cash equity, etc.). A Liability drains resources out of your wallet on recurrent schedules (such as car finance debts). Build assets, not luxuries!</p>
+                </div>
+                <div>
+                    <h4 class="font-extrabold text-white text-[11px] mb-0.5 text-violet-400">3. Opportunity Cost</h4>
+                    <p class="text-[11px]">The missed options of selecting one action path over another. For instance, splurging $1,000 on retail shopping yields fast short-term joy but deprives you of that money's compounding capability (~$3,000 in stocks over 15 years).</p>
+                </div>
+                <div>
+                    <h4 class="font-extrabold text-white text-[11px] mb-0.5 text-sky-455">4. Biological Human Capital</h4>
+                    <p class="text-[11px]">Your organic health and skillset represents your most central early compound factor. Protecting personal physical vitality lowers unexpected medical penalties and retains base career focus bonuses!</p>
+                </div>
+            </div>
+            <button class="mt-4 w-full bg-slate-850 hover:bg-slate-800 text-white font-bold py-2 rounded-xl border border-slate-750 transition text-xs uppercase tracking-wide scale-95" onclick="toggleModal('modal-literacy', false)">
+                Got it, let's play!
+            </button>
+        </div>
+    </div>
+
+
+    <!-- RETIREMENT / END OF LIFE SCORE MODAL -->
+    <div id="modal-retirement" class="modal-backdrop fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300 font-sans">
+        <div class="bg-slate-900 border border-slate-850 rounded-3xl max-w-md w-full p-5 shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden select-none">
+            
+            <div class="flex flex-col items-center justify-center text-center gap-2 mb-4 pb-4 border-b border-slate-855">
+                <div class="text-5xl text-center id-avatar animate-bounce-slow" id="retirement-avatar">👴</div>
+                <h3 class="text-xl font-black bg-gradient-to-r from-emerald-400 via-amber-400 to-violet-400 bg-clip-text text-transparent mt-1" id="retirement-title">
+                    Your Journey is Complete
+                </h3>
+                <p id="retirement-age-subtitle" class="text-[10px] text-slate-450 uppercase tracking-widest font-black">Retired at Age 65</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin">
+                <!-- Final Pillar Scores display -->
+                <div class="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-2xl border border-slate-850 text-center font-mono">
+                    <div>
+                        <span class="text-[8px] uppercase tracking-wider font-extrabold text-emerald-450 block mb-0.5">Ending Health</span>
+                        <div class="text-sm font-black text-white" id="retirement-health">80%</div>
+                    </div>
+                    <div>
+                        <span class="text-[8px] uppercase tracking-wider font-extrabold text-amber-500 block mb-0.5">Ending Net Assets</span>
+                        <div class="text-sm font-black text-emerald-400" id="retirement-wealth">$524,000</div>
+                    </div>
+                    <div>
+                        <span class="text-[8px] uppercase tracking-wider font-extrabold text-violet-400 block mb-0.5">Ending Joy</span>
+                        <div class="text-sm font-black text-white" id="retirement-happiness">75%</div>
+                    </div>
+                </div>
+
+                <!-- Narrative summation description -->
+                <div class="bg-slate-950/40 border border-slate-855 p-3.5 rounded-2xl space-y-1 text-xs">
+                    <h4 class="text-[10px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5"><i class="fa-solid fa-award text-amber-500"></i> Lifetime Summary</h4>
+                    <p id="retirement-narrative" class="text-[11px] text-slate-450 leading-normal text-justify">
+                        You successfully navigated adulthood and retired with safety!
+                    </p>
+                </div>
+
+                <!-- Financial Lexicon retrospect insights -->
+                <div class="bg-indigo-950/15 border border-indigo-900/30 p-3.5 rounded-2xl">
+                    <h4 class="text-[10px] font-extrabold text-indigo-300 uppercase tracking-wider mb-1 flex items-center gap-1.5"><i class="fa-solid fa-graduation-cap text-indigo-400"></i> Lifetime Financial Report</h4>
+                    <div id="retirement-financial-insights" class="space-y-1.5 text-[11px] text-indigo-200">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal footer controls -->
+            <div class="grid grid-cols-2 gap-2 mt-5">
+                <button class="bg-slate-800 hover:bg-slate-750 text-white font-bold py-2.5 rounded-xl transition border border-slate-750 active:scale-95 text-[10.5px] uppercase tracking-wider text-center font-black" onclick="restartGame()">
+                    Play Again
+                </button>
+                <button class="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-black py-2.5 rounded-xl transition shadow active:scale-95 text-[10.5px] uppercase tracking-wider text-center" onclick="toggleModal('modal-retirement', false)">
+                    Inspect Board
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Interaction Script Engine -->
+    <script src="app.js"></script>
+</body>
+</html>
