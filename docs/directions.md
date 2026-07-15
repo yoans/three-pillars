@@ -69,24 +69,24 @@ Game state snapshot (JSON) → /api/coach → small model → structured suggest
 
 1. Tester plays any version.
 2. Hits **Send feedback** → name/role + free text + auto-attached **state JSON** + optional **screenshot**.
-3. Stored locally always; POSTs to Railway when available (`/api/feedback`).
-4. You (or David) review the queue — no Slack archaeology required.
+3. Stored locally always; on Railway with `GITHUB_TOKEN`, also opens a **GitHub Issue** on the repo.
 
-Later (optional): shared feedback board URL, class codes, remote save slots.
+Later (optional): class codes, remote save slots.
 
 ---
 
-## Railway / persistence (when you’re ready)
+## Railway vars (minimal)
 
-| Piece | Purpose |
+| Variable | Purpose |
 | --- | --- |
-| Express (or similar) static + API | Serve the site + `/api/coach` + `/api/feedback` |
-| Volume or file store | Persist feedback JSON |
-| `GROQ_API_KEY` / OpenRouter | Cheap LLM |
-| Kill switch | Unset key → coach falls back to rules; site still plays |
+| `OPENAI_API_KEY` | Live coach (`gpt-4o-mini`) |
+| `GITHUB_TOKEN` | Create Issues from in-game Feedback |
+| `GITHUB_REPO` | `owner/name` (default `yoans/three-pillars`) |
+| `GITHUB_FEEDBACK_LABELS` | default `playtest-feedback` |
 
-GitHub Pages can remain the free mirror without AI; Railway is the “lab with brain + memory.”
+No volume / file persistence required. Kill switch = unset keys / unpublish service.
 
+GitHub Pages can remain a free mirror without AI; Railway is the lab with coach + Issues.
 ---
 
 ## Suggested order of work

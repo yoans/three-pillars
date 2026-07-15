@@ -126,11 +126,11 @@
     if (status) status.textContent = "Capturing…";
     const state = global.state || null;
     const result = await submitFeedback({ name, role, text, state, includeScreenshot });
-    if (status) {
-      status.textContent = result.remote?.ok
-        ? `Sent to lab queue (${result.remote.id}). Also saved on this device.`
-        : "Saved on this device. Remote API not reachable yet (fine on GitHub Pages).";
-    }
+        if (status) {
+          status.textContent = result.remote?.ok
+            ? `Opened GitHub issue #${result.remote.id}${result.remote.url ? ` — ${result.remote.url}` : ""}. Also saved on this device.`
+            : "Saved on this device. Remote Issues API not reachable (needs Railway + GITHUB_TOKEN).";
+        }
     const ta = document.getElementById("fb-text");
     if (ta) ta.value = "";
   }

@@ -1,40 +1,37 @@
 /**
- * Stewardship Life — Railway-ready API
- * Serves static site + /api/coach + /api/feedback
+ * Stewardship Life — Railway API
+ * Serves static site + /api/coach (OpenAI) + /api/feedback (GitHub Issues)
  *
  * Env:
  *   PORT
- *   GROQ_API_KEY or OPENAI_API_KEY
- *   LLM_BASE_URL (default Groq)
- *   LLM_MODEL (default llama-3.1-8b-instant)
- *   DATA_DIR or RAILWAY_VOLUME_MOUNT_PATH
+ *   OPENAI_API_KEY
+ *   LLM_BASE_URL (default https://api.openai.com/v1)
+ *   LLM_MODEL (default gpt-4o-mini)
+ *   GITHUB_TOKEN — fine-grained or classic with Issues: write
+ *   GITHUB_REPO — owner/name (default yoans/three-pillars)
+ *   GITHUB_FEEDBACK_LABELS — comma list (optional)
  */
 
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
-const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ROOT = path.join(__dirname, "..");
-const DATA_DIR =
-  process.env.DATA_DIR ||
-  process.env.RAILWAY_VOLUME_MOUNT_PATH ||
-  path.join(__dirname, "data");
 
-const LLM_BASE_URL = (process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "");
-const LLM_MODEL = process.env.LLM_MODEL || "llama-3.1-8b-instant";
-const LLM_KEY = process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY || "";
+const LLM_BASE_URL = (process.env.LLM_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+const LLM_MODEL = process.env.LLM_MODEL || "gpt-4o-mini";
+const LLM_KEY = process.env.OPENAI_API_KEY || process.env.GROQ_API_KEY || "";
+
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || "";
+const GITHUB_REPO = process.env.GITHUB_REPO || "yoans/three-pillars";
+const GITHUB_FEEDBACK_LABELS = (process.env.GITHUB_FEEDBACK_LABELS || "playtest-feedback")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 app.use(express.json({ limit: "6mb" }));
 app.use(express.static(ROOT));
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  const fb = path.join(DATA_DIR, "feedback");
-  if (!fs.existsSync(fb)) fs.mkdirSync(fb, { recursive: true });
-}
 
 const COACH_SYSTEM = `You are a stewardship money coach inside a teaching life sim.
 Players steward TIME, TALENTS, and TREASURES. Score = Wealth × (1 + Health/100 + Joy/100).
@@ -61,7 +58,8 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     coach: Boolean(LLM_KEY),
     model: LLM_KEY ? LLM_MODEL : null,
-    feedbackDir: DATA_DIR
+    feedback: Boolean(GITHUB_TOKEN),
+    repo: GITHUB_REPO
   });
 });
 
@@ -94,7 +92,7 @@ app.post("/api/coach", async (req, res) => {
           { role: "system", content: COACH_SYSTEM },
           {
             role: "user",
-            content: `Game snapshot:\n${JSON.stringify(snapshot, null, 0)}`
+            content: `Game snapshot:\n${JSON.stringify(snapshot)}`
           }
         ]
       })
@@ -174,13 +172,133 @@ function ruleBasedCoach(s) {
   };
 }
 
-app.post("/api/feedback", (req, res) => {
+function buildIssueBody(payload) {
+  const stateJson = JSON.stringify(payload.state || {}, null, 2).slice(0, 60000);
+  const lines = [
+    `## Feedback`,
+    payload.text || "_(no text)_",
+    ``,
+    `## Meta`,
+    `- **Name:** ${payload.name || "anonymous"}`,
+    `- **Role:** ${payload.role || "—"}`,
+    `- **Version:** ${payload.version || "—"}`,
+    `- **Mode:** ${payload.mode || "—"}`,
+    `- **Captured:** ${payload.capturedAt || payload.receivedAt || new Date().toISOString()}`,
+    `- **Screenshot:** ${payload.screenshotDataUrl ? "yes (attached below if upload succeeded)" : "no"}`,
+    `- **User-Agent:** \`${(payload.userAgent || "").slice(0, 200)}\``,
+    ``,
+    `## Game state`,
+    "```json",
+    stateJson,
+    "```"
+  ];
+  return lines.join("\n");
+}
+
+async function ensureLabel(name) {
+  const [owner, repo] = GITHUB_REPO.split("/");
+  const check = await fetch(`https://api.github.com/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`, {
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "stewardship-life"
+    }
+  });
+  if (check.status === 200) return;
+  await fetch(`https://api.github.com/repos/${owner}/${repo}/labels`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "stewardship-life"
+    },
+    body: JSON.stringify({
+      name,
+      color: "0d9488",
+      description: "In-game playtest feedback"
+    })
+  });
+}
+
+async function createGitHubIssue(payload) {
+  const [owner, repo] = GITHUB_REPO.split("/");
+  if (!owner || !repo) throw new Error("GITHUB_REPO must be owner/name");
+
+  for (const label of GITHUB_FEEDBACK_LABELS) {
+    try {
+      await ensureLabel(label);
+    } catch (e) {
+      console.warn("label ensure failed", label, e.message);
+    }
+  }
+
+  const age = payload.state?.age != null ? ` age ${payload.state.age}` : "";
+  const title = `[Feedback] ${payload.version || payload.mode || "play"} · ${payload.name || "anon"}${age}`.slice(0, 180);
+
+  let body = buildIssueBody(payload);
+
+  // Optional: park screenshot in a private-ish gist and link it
+  if (payload.screenshotDataUrl && payload.screenshotDataUrl.startsWith("data:image")) {
+    try {
+      const gist = await fetch("https://api.github.com/gists", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "User-Agent": "stewardship-life"
+        },
+        body: JSON.stringify({
+          description: `Stewardship Life screenshot · ${title}`,
+          public: false,
+          files: {
+            "screenshot.dataurl.txt": {
+              content: payload.screenshotDataUrl.slice(0, 4_500_000)
+            }
+          }
+        })
+      });
+      if (gist.ok) {
+        const g = await gist.json();
+        body += `\n\n## Screenshot gist\n${g.html_url}\n_(data URL text — open locally to preview)_\n`;
+      }
+    } catch (e) {
+      console.warn("gist upload failed", e.message);
+    }
+  }
+
+  const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "User-Agent": "stewardship-life"
+    },
+    body: JSON.stringify({
+      title,
+      body,
+      labels: GITHUB_FEEDBACK_LABELS
+    })
+  });
+
+  if (!r.ok) {
+    const errText = await r.text();
+    throw new Error(`GitHub issue failed ${r.status}: ${errText.slice(0, 400)}`);
+  }
+  return r.json();
+}
+
+app.post("/api/feedback", async (req, res) => {
+  if (!GITHUB_TOKEN) {
+    return res.status(503).json({
+      error: "GITHUB_TOKEN not configured — feedback saved only on the tester’s device"
+    });
+  }
+
   try {
-    ensureDataDir();
-    const id = `${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
     const payload = {
-      id,
-      receivedAt: new Date().toISOString(),
       version: req.body?.version || "unknown",
       mode: req.body?.mode || null,
       name: String(req.body?.name || "anonymous").slice(0, 80),
@@ -190,67 +308,25 @@ app.post("/api/feedback", (req, res) => {
       screenshotDataUrl: req.body?.screenshotDataUrl
         ? String(req.body.screenshotDataUrl).slice(0, 5_000_000)
         : null,
+      capturedAt: req.body?.capturedAt || null,
+      receivedAt: new Date().toISOString(),
       userAgent: req.headers["user-agent"] || ""
     };
-    const file = path.join(DATA_DIR, "feedback", `${id}.json`);
-    fs.writeFileSync(file, JSON.stringify(payload, null, 2));
-    // Keep a lightweight index without screenshots
-    const indexPath = path.join(DATA_DIR, "feedback-index.json");
-    let index = [];
-    if (fs.existsSync(indexPath)) {
-      try {
-        index = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-      } catch {
-        index = [];
-      }
-    }
-    index.unshift({
-      id,
-      receivedAt: payload.receivedAt,
-      version: payload.version,
-      mode: payload.mode,
-      name: payload.name,
-      role: payload.role,
-      textPreview: payload.text.slice(0, 160),
-      hasScreenshot: Boolean(payload.screenshotDataUrl)
+
+    const issue = await createGitHubIssue(payload);
+    res.json({
+      ok: true,
+      id: String(issue.number),
+      url: issue.html_url
     });
-    fs.writeFileSync(indexPath, JSON.stringify(index.slice(0, 500), null, 2));
-    res.json({ ok: true, id });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: "could not store feedback" });
+    res.status(500).json({ error: e.message || "could not create GitHub issue" });
   }
 });
 
-app.get("/api/feedback", (req, res) => {
-  const token = process.env.FEEDBACK_ADMIN_TOKEN;
-  if (token && req.headers["x-admin-token"] !== token) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  ensureDataDir();
-  const indexPath = path.join(DATA_DIR, "feedback-index.json");
-  if (!fs.existsSync(indexPath)) return res.json({ items: [] });
-  try {
-    const items = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-    res.json({ items });
-  } catch {
-    res.json({ items: [] });
-  }
-});
-
-app.get("/api/feedback/:id", (req, res) => {
-  const token = process.env.FEEDBACK_ADMIN_TOKEN;
-  if (token && req.headers["x-admin-token"] !== token) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  ensureDataDir();
-  const file = path.join(DATA_DIR, "feedback", `${req.params.id}.json`);
-  if (!fs.existsSync(file)) return res.status(404).json({ error: "not found" });
-  res.type("json").send(fs.readFileSync(file, "utf8"));
-});
-
-// SPA-ish fallback for deep links (none yet) — keep index for /
 app.listen(PORT, () => {
-  ensureDataDir();
-  console.log(`Stewardship Life on :${PORT} · coach=${Boolean(LLM_KEY)} · data=${DATA_DIR}`);
+  console.log(
+    `Stewardship Life on :${PORT} · coach=${Boolean(LLM_KEY)} (${LLM_MODEL}) · issues=${Boolean(GITHUB_TOKEN)} → ${GITHUB_REPO}`
+  );
 });
