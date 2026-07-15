@@ -1,4 +1,3 @@
-/* Railway: Node web service, root start command: npm start */
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
