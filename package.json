@@ -1,0 +1,17 @@
+{
+  "name": "stewardship-life",
+  "version": "0.3.0",
+  "private": true,
+  "description": "Stewardship Life — classroom / ongoing / Vision+ / AI Wizard lab",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

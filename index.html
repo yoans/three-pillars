@@ -29,63 +29,138 @@
 </head>
 <body class="h-full flex flex-col font-sans text-slate-200 antialiased overflow-x-hidden">
 
-  <!-- MODE SELECT -->
-  <div id="screen-mode" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <div class="max-w-lg w-full float-in">
-      <div class="text-center mb-8">
-        <p class="text-[11px] uppercase tracking-[0.25em] text-teal-400/90 font-semibold mb-3">Time · Talents · Treasures</p>
-        <h1 class="font-display text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-none">Stewardship Life</h1>
-        <p class="mt-4 text-slate-400 text-sm leading-relaxed max-w-md mx-auto">
-          David’s vision: manage money through decisions and events in life. Wealth is only the base —
-          health and happiness multiply what your life is worth.
+  <!-- MODE / VERSION LAB -->
+  <div id="screen-mode" class="fixed inset-0 z-50 overflow-y-auto">
+    <div class="min-h-full flex items-start justify-center p-4 py-8 sm:py-12">
+      <div class="max-w-2xl w-full float-in">
+        <div class="text-center mb-8">
+          <p class="text-[11px] uppercase tracking-[0.25em] text-teal-400/90 font-semibold mb-3">Time · Talents · Treasures</p>
+          <h1 class="font-display text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-none">Stewardship Life</h1>
+          <p class="mt-4 text-slate-400 text-sm leading-relaxed max-w-lg mx-auto">
+            David’s vision, in a tester lab: pick a version, play, then send feedback from inside the game
+            (notes + state + screenshot). Wealth is the base — health and joy multiply what a life is worth.
+          </p>
+          <p class="mt-3 text-[11px] text-slate-500">
+            <a href="game-info.html" class="text-teal-500/90 underline underline-offset-2">Guide</a>
+            <span class="mx-2 text-slate-700">·</span>
+            <a href="docs/directions.md" class="text-teal-500/90 underline underline-offset-2">Directions map</a>
+          </p>
+        </div>
+
+        <div class="space-y-3">
+          <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold px-1">Core · David’s vision</p>
+
+          <button type="button" onclick="startMode('classroom')" class="choice-card w-full text-left rounded-2xl border border-slate-700/80 bg-slate-900/70 hover:border-teal-500/50 p-5">
+            <div class="flex gap-4 items-start">
+              <div class="h-11 w-11 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-chalkboard-user text-teal-300"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="font-display text-lg font-bold text-white">Classroom</div>
+                  <span class="text-[8px] px-1.5 py-0.5 rounded border border-teal-800/60 text-teal-400/90 uppercase tracking-wider">V1</span>
+                </div>
+                <div class="text-[10px] uppercase tracking-widest text-teal-400/80 font-semibold mt-0.5">Focus · teacher debrief · 20–30 min</div>
+                <p class="text-sm text-slate-400 mt-2 leading-snug">Set job, spend/save/share, time, talents, protection — then a lifetime projection for discussion.</p>
+                <ul class="mt-2 text-[11px] text-slate-500 space-y-0.5 list-disc pl-4">
+                  <li>Wizard → silent sim → legacy + teacher notes</li>
+                  <li>Best for class periods and “what if” debates</li>
+                </ul>
+              </div>
+            </div>
+          </button>
+
+          <button type="button" onclick="startMode('ongoing')" class="choice-card w-full text-left rounded-2xl border border-slate-700/80 bg-slate-900/70 hover:border-amber-500/50 p-5">
+            <div class="flex gap-4 items-start">
+              <div class="h-11 w-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-route text-amber-300"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="font-display text-lg font-bold text-white">Ongoing</div>
+                  <span class="text-[8px] px-1.5 py-0.5 rounded border border-amber-800/60 text-amber-400/90 uppercase tracking-wider">V2</span>
+                </div>
+                <div class="text-[10px] uppercase tracking-widest text-amber-400/80 font-semibold mt-0.5">Focus · live the years · ages 25→85</div>
+                <p class="text-sm text-slate-400 mt-2 leading-snug">Year by year. Edit the plan. Face opportunities and setbacks that test stewardship.</p>
+                <ul class="mt-2 text-[11px] text-slate-500 space-y-0.5 list-disc pl-4">
+                  <li>Next Year loop · plan editor · life events</li>
+                  <li>Baseline lived experience (compare to Vision+)</li>
+                </ul>
+              </div>
+            </div>
+          </button>
+
+          <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold px-1 pt-3">Lab · try these with testers</p>
+
+          <button type="button" onclick="startMode('vision')" class="choice-card w-full text-left rounded-2xl border border-cyan-800/50 bg-slate-900/70 hover:border-cyan-500/50 p-5">
+            <div class="flex gap-4 items-start">
+              <div class="h-11 w-11 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-lightbulb text-cyan-300"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="font-display text-lg font-bold text-white">Vision+</div>
+                  <span class="text-[8px] px-1.5 py-0.5 rounded border border-cyan-800/60 text-cyan-400/90 uppercase tracking-wider">V3 · amalgam</span>
+                </div>
+                <div class="text-[10px] uppercase tracking-widest text-cyan-400/80 font-semibold mt-0.5">Focus · David’s playtest asks · no big rewrite</div>
+                <p class="text-sm text-slate-400 mt-2 leading-snug">Ongoing with the obvious wins baked in — for Wildwood / apprentice testers to poke at.</p>
+                <ul class="mt-2 text-[11px] text-slate-500 space-y-0.5 list-disc pl-4">
+                  <li><span class="text-slate-400">Joy</span> label · weekly hours used vs free</li>
+                  <li>Change job in Plan · Home confirm + autosave</li>
+                  <li>More pop-ups / photo temptations · optional AI coach button</li>
+                  <li>In-game feedback (text + state + screenshot)</li>
+                </ul>
+              </div>
+            </div>
+          </button>
+
+          <button type="button" onclick="startMode('wizard')" class="choice-card w-full text-left rounded-2xl border border-violet-800/50 bg-slate-900/70 hover:border-violet-500/50 p-5">
+            <div class="flex gap-4 items-start">
+              <div class="h-11 w-11 rounded-xl bg-violet-500/15 border border-violet-500/30 flex items-center justify-center shrink-0">
+                <i class="fa-solid fa-hat-wizard text-violet-300"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <div class="font-display text-lg font-bold text-white">AI Wizard</div>
+                  <span class="text-[8px] px-1.5 py-0.5 rounded border border-violet-800/60 text-violet-400/90 uppercase tracking-wider">V4 · experimental</span>
+                </div>
+                <div class="text-[10px] uppercase tracking-widest text-violet-400/80 font-semibold mt-0.5">Focus · small model behind the glass · same controls</div>
+                <p class="text-sm text-slate-400 mt-2 leading-snug">Vision+ plus a coach that reads your numbers and suggests control changes — never replaces the sim.</p>
+                <ul class="mt-2 text-[11px] text-slate-500 space-y-0.5 list-disc pl-4">
+                  <li>Coach panel always on · brief note after each year</li>
+                  <li>Guardrails: only spend/time/job/insurance-style advice</li>
+                  <li>Needs Railway + cheap API key for live LLM; else local rules</li>
+                  <li>Expense to watch — kill switch = unset key</li>
+                </ul>
+              </div>
+            </div>
+          </button>
+
+          <div class="pt-4 mt-2 border-t border-slate-800/80">
+            <p class="text-[10px] uppercase tracking-[0.2em] text-slate-600 font-semibold px-1 mb-3">Archive · mine for future depth</p>
+            <a href="legacy/index.html" class="choice-card block w-full text-left rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/40 hover:border-rose-500/40 p-5 no-underline">
+              <div class="flex gap-4 items-start">
+                <div class="h-11 w-11 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center shrink-0">
+                  <i class="fa-solid fa-dice text-rose-300"></i>
+                </div>
+                <div>
+                  <div class="font-display text-lg font-bold text-slate-200">My weird Game of Life</div>
+                  <div class="text-[10px] uppercase tracking-widest text-rose-400/70 font-semibold mt-0.5">LifeForge · lifestyle / path ideas</div>
+                  <p class="text-sm text-slate-500 mt-2 leading-snug">Season-and-card prototype. David: pull lifestyle, travel, budgeting choices into Ongoing later — not rewritten here yet.</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <div class="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-[11px] text-slate-500 leading-relaxed">
+          <span class="text-slate-400 font-semibold">Tester loop:</span> play any version → use <span class="text-slate-300">Feedback</span> in-header → we get your note, game state, and screenshot without email archaeology.
+          Backlog (not in V3 yet): richer invest UI, home/car/family systems, credit score, hard mode, scams.
+        </div>
+        <p class="text-center text-[11px] text-slate-600 mt-4 leading-relaxed">
+          Wisdom pattern: spend less than you earn · share ≥10% · invest the rest · guard rest and relationships
         </p>
       </div>
-      <div class="space-y-3">
-        <p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold px-1">David’s vision</p>
-        <button type="button" onclick="startMode('classroom')" class="choice-card w-full text-left rounded-2xl border border-slate-700/80 bg-slate-900/70 hover:border-teal-500/50 p-5">
-          <div class="flex gap-4 items-start">
-            <div class="h-11 w-11 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center shrink-0">
-              <i class="fa-solid fa-chalkboard-user text-teal-300"></i>
-            </div>
-            <div>
-              <div class="font-display text-lg font-bold text-white">Classroom</div>
-              <div class="text-[10px] uppercase tracking-widest text-teal-400/80 font-semibold mt-0.5">20–30 minutes</div>
-              <p class="text-sm text-slate-400 mt-2 leading-snug">Set your job, spending, time, and talents — then see a lifetime projection for teacher-led discussion.</p>
-            </div>
-          </div>
-        </button>
-        <button type="button" onclick="startMode('ongoing')" class="choice-card w-full text-left rounded-2xl border border-slate-700/80 bg-slate-900/70 hover:border-amber-500/50 p-5">
-          <div class="flex gap-4 items-start">
-            <div class="h-11 w-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <i class="fa-solid fa-route text-amber-300"></i>
-            </div>
-            <div>
-              <div class="font-display text-lg font-bold text-white">Ongoing</div>
-              <div class="text-[10px] uppercase tracking-widest text-amber-400/80 font-semibold mt-0.5">Ages 25 → 85</div>
-              <p class="text-sm text-slate-400 mt-2 leading-snug">Live year by year. Adjust your plan, face opportunities and setbacks, and steward toward goals.</p>
-            </div>
-          </div>
-        </button>
-
-        <div class="pt-4 mt-2 border-t border-slate-800/80">
-          <p class="text-[10px] uppercase tracking-[0.2em] text-slate-600 font-semibold px-1 mb-3">Archive · what came before</p>
-          <a href="legacy/index.html" class="choice-card block w-full text-left rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/40 hover:border-rose-500/40 p-5 no-underline">
-            <div class="flex gap-4 items-start">
-              <div class="h-11 w-11 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center shrink-0">
-                <i class="fa-solid fa-dice text-rose-300"></i>
-              </div>
-              <div>
-                <div class="font-display text-lg font-bold text-slate-200">My weird Game of Life</div>
-                <div class="text-[10px] uppercase tracking-widest text-rose-400/70 font-semibold mt-0.5">LifeForge · early prototype</div>
-                <p class="text-sm text-slate-500 mt-2 leading-snug">The off-the-wall season-and-card sim I built first — kept here so you can see the “before” next to David’s vision.</p>
-              </div>
-            </div>
-          </a>
-        </div>
-      </div>
-      <p class="text-center text-[11px] text-slate-600 mt-6 leading-relaxed">
-        Wisdom pattern: spend less than you earn · share ≥10% · invest the rest · guard rest and relationships
-      </p>
     </div>
   </div>
 
@@ -105,6 +180,12 @@
           </div>
         </div>
         <div class="flex items-center gap-1.5 shrink-0">
+          <button id="btn-coach" type="button" class="hidden px-2.5 py-1.5 rounded-lg bg-violet-950/50 border border-violet-700/50 text-[10px] font-semibold uppercase tracking-wide text-violet-200 hover:border-violet-400/50" title="AI coach">
+            Coach
+          </button>
+          <button id="btn-feedback" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-semibold uppercase tracking-wide text-slate-300 hover:border-cyan-500/40" title="Send feedback">
+            Feedback
+          </button>
           <button id="btn-edit-plan" type="button" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-[10px] font-semibold uppercase tracking-wide text-slate-300 hover:border-teal-500/40">
             Plan
           </button>
@@ -149,20 +230,39 @@
             <span class="text-[9px] text-slate-500">Net worth base</span>
           </div>
           <div id="card-happiness" class="rounded-2xl border border-slate-800 bg-slate-900/60 p-3 flex flex-col items-center gap-2">
-            <span class="text-[9px] font-bold uppercase tracking-wider text-violet-400">Happiness</span>
+            <span id="label-joy" class="text-[9px] font-bold uppercase tracking-wider text-violet-400">Joy</span>
             <div class="stat-wheel" style="--wheel-pct: 70; --wheel-color: #7C3AED;">
               <span id="val-happiness" class="stat-wheel-value">70%</span>
             </div>
             <span id="desc-happiness" class="text-[10px] text-slate-500 text-center">Steady</span>
           </div>
         </div>
+        <div id="hours-meter" class="hidden rounded-2xl border border-slate-800 bg-slate-900/40 px-3 py-2.5">
+          <div class="flex justify-between items-baseline gap-2 mb-1.5">
+            <div class="text-[9px] uppercase tracking-widest text-slate-500 font-semibold">Weekly hours</div>
+            <div id="hours-label" class="font-mono text-[11px] text-slate-300 tabular-nums">0 / 168 used</div>
+          </div>
+          <div class="h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+            <div id="hours-bar" class="h-full bg-teal-500/80 transition-all duration-300" style="width:0%"></div>
+          </div>
+          <p id="hours-hint" class="text-[10px] text-slate-500 mt-1.5">168 hours in a week — what’s left is free / buffer.</p>
+        </div>
         <div class="rounded-2xl border border-slate-800 bg-gradient-to-r from-emerald-950/30 via-amber-950/20 to-violet-950/30 px-3 py-2.5 flex justify-between items-center gap-2">
           <div class="min-w-0">
             <div class="text-[9px] uppercase tracking-widest text-slate-500 font-semibold">Score formula</div>
-            <div class="text-[10px] text-slate-500 truncate">Wealth × (1 + Health% + Happiness%)</div>
+            <div id="score-formula-label" class="text-[10px] text-slate-500 truncate">Wealth × (1 + Health% + Joy%)</div>
           </div>
           <div id="val-score" class="font-mono text-xl font-semibold text-white tabular-nums shrink-0">$0</div>
         </div>
+      </section>
+
+      <!-- Coach panel (Vision+ on demand / Wizard always) -->
+      <section id="coach-panel" class="hidden rounded-3xl border border-violet-900/40 bg-violet-950/20 p-4 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="text-[10px] uppercase tracking-widest text-violet-300/90 font-bold">Stewardship coach</h2>
+          <button type="button" id="btn-coach-refresh" class="text-[9px] uppercase tracking-wider text-violet-400/80 hover:text-violet-200">Ask again</button>
+        </div>
+        <div id="coach-body" class="text-sm text-slate-400">Ask the coach for a read on your numbers and suggested control tweaks.</div>
       </section>
 
       <!-- Wisdom strip -->
@@ -216,7 +316,7 @@
             <div id="end-wealth" class="text-amber-300 font-semibold">—</div>
           </div>
           <div class="rounded-xl bg-slate-950 border border-slate-800 p-2">
-            <div class="text-[8px] text-violet-400 uppercase">Happiness</div>
+            <div class="text-[8px] text-violet-400 uppercase" id="end-joy-label">Joy</div>
             <div id="end-happiness" class="text-white font-semibold">—</div>
           </div>
         </div>
@@ -240,6 +340,40 @@
     </div>
   </div>
 
+  <!-- FEEDBACK MODAL -->
+  <div id="modal-feedback" class="modal-backdrop fixed inset-0 z-[80] bg-slate-950/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 opacity-0 pointer-events-none">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full overflow-hidden shadow-2xl float-in">
+      <div class="p-5 space-y-3">
+        <div>
+          <div class="text-[9px] uppercase tracking-widest font-bold text-cyan-500/80">Tester feedback</div>
+          <h3 class="font-display text-xl font-bold text-white mt-1">Capture a note</h3>
+          <p class="text-sm text-slate-400 mt-1 leading-relaxed">We’ll attach your current game state. Optional screenshot helps a lot. Works offline on this device; syncs to the lab when Railway is up.</p>
+        </div>
+        <label class="block text-[10px] text-slate-500 uppercase tracking-wider">Name
+          <input id="fb-name" type="text" placeholder="David / class / anon" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white" />
+        </label>
+        <label class="block text-[10px] text-slate-500 uppercase tracking-wider">Role
+          <input id="fb-role" type="text" placeholder="teacher · student · apprentice · parent" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white" />
+        </label>
+        <label class="block text-[10px] text-slate-500 uppercase tracking-wider">What should we know?
+          <textarea id="fb-text" rows="4" placeholder="Confusing? Missing? Loved? Bug?" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-sm text-white resize-y"></textarea>
+        </label>
+        <label class="flex items-center gap-2 text-sm text-slate-300">
+          <input id="fb-shot" type="checkbox" checked class="rounded border-slate-600" />
+          Include screenshot of the game
+        </label>
+        <p id="fb-status" class="text-[11px] text-slate-500 min-h-[1.25rem]"></p>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="FeedbackLab.close()" class="flex-1 rounded-xl border border-slate-700 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-200">Cancel</button>
+          <button type="button" onclick="FeedbackLab.submit()" class="flex-1 rounded-xl bg-cyan-500 text-slate-950 py-2.5 text-[11px] font-bold uppercase tracking-wider">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="feedback.js"></script>
+  <script src="coach.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

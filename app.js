@@ -97,6 +97,51 @@ const OPPORTUNITIES = [
       { label: "Go ($220)", cash: -220, happiness: 7, happinessDecay: 6, health: 1, tag: "consume" },
       { label: "Walk + early night instead", happiness: 2, health: 2, tag: "rest" }
     ]
+  },
+  {
+    id: "car_ad",
+    kind: "Short-term joy",
+    title: "Glossy car upgrade ad",
+    body: "The photo looks like freedom. The payment looks like a second job.",
+    visual: "linear-gradient(135deg,#1e293b,#0f172a), url('https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=60')",
+    choices: [
+      { label: "Stretch for the nicer car (+$4,500 debt)", cash: -500, debt: 4500, happiness: 10, happinessDecay: 9, tag: "consume" },
+      { label: "Keep the reliable ride", happiness: 1, tag: "steward" }
+    ]
+  },
+  {
+    id: "home_ad",
+    kind: "Lifestyle pull",
+    title: "Open-house fantasy",
+    body: "A staging photo whispers: bigger rooms = better life. Housing costs compound for decades.",
+    visual: "linear-gradient(135deg,#334155,#0f172a), url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=60')",
+    choices: [
+      { label: "Chase the upgrade (big cash + stress)", cash: -6000, debt: 12000, happiness: 9, happinessDecay: 8, health: -2, tag: "consume" },
+      { label: "Stay put — fund the emergency cushion", cash: 0, happiness: 2, tag: "steward" }
+    ]
+  },
+  {
+    id: "vacation_ad",
+    kind: "Short-term joy",
+    title: "Bucket-list vacation feed",
+    body: "Scroll-bait travel shots. Rest matters — bankruptcy from FOMO does not.",
+    visual: "linear-gradient(135deg,#0e7490,#164e63), url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=60')",
+    choices: [
+      { label: "Book the big trip ($3,200)", cash: -3200, happiness: 14, happinessDecay: 10, tag: "consume" },
+      { label: "Plan a simpler local rest week", cash: -200, happiness: 5, happinessDecay: 2, health: 2, tag: "rest" },
+      { label: "Skip the feed", tag: "steward" }
+    ]
+  },
+  {
+    id: "family_night",
+    kind: "Relationships",
+    title: "Family / friend night invitation",
+    body: "Connection is a real investment. It costs time more than money.",
+    visual: "linear-gradient(135deg,#365314,#14532d), url('https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&q=60')",
+    choices: [
+      { label: "Show up (time + $40)", cash: -40, happiness: 7, happinessDecay: 1, tag: "serve" },
+      { label: "Send a rain check again", happiness: -3, tag: "skip" }
+    ]
   }
 ];
 
@@ -217,6 +262,34 @@ let state = null;
 let classroomStep = 0;
 let pendingEvent = null;
 
+const SAVE_KEY = "stewardship-life-autosave";
+const WEEK_HOURS = 168;
+
+function isLivedMode(mode) {
+  return mode === "ongoing" || mode === "vision" || mode === "wizard";
+}
+
+function isLabMode(mode) {
+  return mode === "vision" || mode === "wizard";
+}
+
+function joyLabel(mode) {
+  // David liked Joy in ongoing; lab modes lean into it. Classroom keeps Happiness for teacher vocab option.
+  if (mode === "classroom") return "Happiness";
+  return "Joy";
+}
+
+function modeBadge(mode) {
+  return (
+    {
+      classroom: "Classroom",
+      ongoing: "Ongoing",
+      vision: "Vision+",
+      wizard: "AI Wizard"
+    }[mode] || mode
+  );
+}
+
 function money(n) {
   const v = Math.round(n || 0);
   const sign = v < 0 ? "-" : "";
@@ -322,6 +395,38 @@ function hireAnnualCost(s) {
 function weeklyHours(s) {
   const t = s.plan.time;
   return t.work + t.sleep + t.learn + t.serve + t.social + t.fun + (t.sabbath ? 8 : 0);
+}
+
+function persistState() {
+  if (!state || state.ended) return;
+  try {
+    const slim = {
+      ...state,
+      _editingPlan: false,
+      log: (state.log || []).slice(0, 30)
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(slim));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function clearPersisted() {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function loadPersisted() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -530,13 +635,14 @@ function renderHUD() {
   if (!state) return;
   const nw = netWorth();
   const score = lifetimeScore();
+  const joy = joyLabel(state.mode);
   document.getElementById("hud-age").textContent = state.age.toFixed(0);
   document.getElementById("hud-phase").textContent =
     state.age >= RETIRE_AGE ? "Retirement years" : state.unemployedYears > 0 ? "Income disrupted" : "Working years";
   document.getElementById("hud-net").textContent = money(nw);
   document.getElementById("hud-score").textContent = money(score);
   document.getElementById("hud-job").textContent = state.job.label;
-  document.getElementById("mode-badge").textContent = state.mode === "classroom" ? "Classroom" : "Ongoing";
+  document.getElementById("mode-badge").textContent = modeBadge(state.mode);
 
   document.getElementById("val-health").textContent = `${Math.round(state.health)}%`;
   document.getElementById("val-happiness").textContent = `${Math.round(state.happiness)}%`;
@@ -544,6 +650,13 @@ function renderHUD() {
   document.getElementById("val-score").textContent = money(score);
   setWheel("card-health", state.health, "#10B981");
   setWheel("card-happiness", state.happiness, "#7C3AED");
+
+  const joyEl = document.getElementById("label-joy");
+  if (joyEl) joyEl.textContent = joy;
+  const formula = document.getElementById("score-formula-label");
+  if (formula) formula.textContent = `Wealth × (1 + Health% + ${joy}%)`;
+  const endJoy = document.getElementById("end-joy-label");
+  if (endJoy) endJoy.textContent = joy;
 
   document.getElementById("desc-health").textContent =
     state.health >= 80 ? "Strong" : state.health >= 55 ? "Steady" : state.health >= 35 ? "Strained" : "Critical";
@@ -554,16 +667,48 @@ function renderHUD() {
   document.getElementById("card-happiness").classList.toggle("danger-flash", state.happiness < 35);
   document.getElementById("card-wealth").classList.toggle("danger-flash", nw < 0);
 
+  // Weekly hours meter (lab modes + helpful for all lived modes)
+  const hoursEl = document.getElementById("hours-meter");
+  if (hoursEl) {
+    const showHours = isLivedMode(state.mode);
+    hoursEl.classList.toggle("hidden", !showHours);
+    if (showHours) {
+      const used = weeklyHours(state);
+      const free = WEEK_HOURS - used;
+      const pct = clamp((used / WEEK_HOURS) * 100, 0, 100);
+      const bar = document.getElementById("hours-bar");
+      const label = document.getElementById("hours-label");
+      const hint = document.getElementById("hours-hint");
+      if (bar) {
+        bar.style.width = `${pct}%`;
+        bar.className = `h-full transition-all duration-300 ${
+          used > WEEK_HOURS ? "bg-rose-500" : used > 150 ? "bg-amber-500/90" : "bg-teal-500/80"
+        }`;
+      }
+      if (label) label.textContent = `${used} / ${WEEK_HOURS} used · ${free} free`;
+      if (hint) {
+        hint.textContent =
+          used > WEEK_HOURS
+            ? "Over 168 — cut commitments. Math-challenged tip: work + sleep + life must fit one week."
+            : "168 hours in a week — free hours are your buffer for rest and surprises.";
+        hint.className = `text-[10px] mt-1.5 ${used > WEEK_HOURS ? "text-rose-400" : "text-slate-500"}`;
+      }
+    }
+  }
+
   const wisdom = document.getElementById("wisdom-strip");
   const p = state.plan;
   const tips = [];
-  if (p.sharePct < 10) tips.push("Sharing is under 10% — long-term happiness usually suffers.");
-  if (p.time.serve < 2) tips.push("Little time serving others — happiness will struggle.");
+  if (p.sharePct < 10) tips.push(`Sharing is under 10% — long-term ${joy.toLowerCase()} usually suffers.`);
+  if (p.time.serve < 2) tips.push(`Little time serving others — ${joy.toLowerCase()} will struggle.`);
   if (p.time.sleep < 49) tips.push("Sleep/rest is low — health will decline.");
   if (!p.time.sabbath) tips.push("No sabbath rhythm — build periodic rest.");
   if (p.spendPct > 80) tips.push("High spending buys short joy that fades.");
+  if (weeklyHours(state) > WEEK_HOURS) tips.push("Weekly hours exceed 168 — something has to give.");
   if (!tips.length) tips.push("Plan looks aligned with spend-less / share / invest / rest / serve.");
   wisdom.textContent = tips[0];
+
+  persistState();
 }
 
 function renderJournal() {
@@ -589,29 +734,139 @@ function toggleModal(id, show) {
 function showModeSelect() {
   toggleModal("modal-end", false);
   toggleModal("modal-event", false);
+  if (window.FeedbackLab) FeedbackLab.close();
   document.getElementById("app-shell").classList.add("hidden");
   document.getElementById("screen-mode").classList.remove("hidden");
   state = null;
+  window.state = null;
+  syncChromeForMode(null);
 }
 
-function startMode(mode) {
+function requestHome() {
+  if (!state) {
+    showModeSelect();
+    return;
+  }
+  if (state._editingPlan) {
+    const leave = confirm(
+      "You’re in Plan. Going Home leaves this life.\n\nOK = leave (progress is autosaved on this device)\nCancel = stay and finish editing"
+    );
+    if (!leave) return;
+  } else if (isLivedMode(state.mode) && !state.ended) {
+    const leave = confirm(
+      "Leave this life and return to versions?\n\nProgress is autosaved on this device. You can resume from the version screen if offered."
+    );
+    if (!leave) return;
+  }
+  showModeSelect();
+  maybeOfferResume();
+}
+
+function syncChromeForMode(mode) {
+  const btnAdvance = document.getElementById("btn-advance");
+  const btnPlan = document.getElementById("btn-edit-plan");
+  const btnCoach = document.getElementById("btn-coach");
+  const coachPanel = document.getElementById("coach-panel");
+  if (!mode) {
+    btnCoach?.classList.add("hidden");
+    coachPanel?.classList.add("hidden");
+    return;
+  }
+  const lived = isLivedMode(mode);
+  btnAdvance.classList.toggle("hidden", !lived);
+  btnPlan.classList.toggle("hidden", !lived);
+  // Coach button: Vision+ on demand; Wizard always shows panel
+  if (mode === "wizard") {
+    btnCoach?.classList.add("hidden");
+    coachPanel?.classList.remove("hidden");
+  } else if (mode === "vision") {
+    btnCoach?.classList.remove("hidden");
+    coachPanel?.classList.add("hidden");
+  } else {
+    btnCoach?.classList.add("hidden");
+    coachPanel?.classList.add("hidden");
+  }
+}
+
+function startMode(mode, opts = {}) {
   document.getElementById("screen-mode").classList.add("hidden");
   document.getElementById("app-shell").classList.remove("hidden");
-  if (mode === "classroom") {
+
+  if (opts.resume && opts.resume.mode === mode) {
+    state = opts.resume;
+    state._editingPlan = false;
+  } else if (mode === "classroom") {
     state = createState("classroom");
     classroomStep = 0;
-    document.getElementById("btn-advance").classList.add("hidden");
-    document.getElementById("btn-edit-plan").classList.add("hidden");
+  } else {
+    state = createState(mode === "ongoing" ? "ongoing" : mode);
+    const intro =
+      mode === "wizard"
+        ? "AI Wizard: same life engine — the coach only suggests tweaks to your visible controls."
+        : mode === "vision"
+          ? "Vision+: David’s playtest wins are on — Joy, hours meter, job changes, more life pops."
+          : "Ongoing life begins at 25. Your plan steers each year — adjust it as wisdom grows.";
+    addLog(intro, true);
+  }
+
+  window.state = state;
+  syncChromeForMode(state.mode);
+
+  if (state.mode === "classroom") {
     renderClassroomWizard();
   } else {
-    state = createState("ongoing");
-    document.getElementById("btn-advance").classList.remove("hidden");
-    document.getElementById("btn-edit-plan").classList.remove("hidden");
-    addLog("Ongoing life begins at 25. Your plan steers each year — adjust it as wisdom grows.", true);
     renderOngoingPlan();
   }
   renderHUD();
   renderJournal();
+
+  if (state.mode === "wizard") {
+    refreshCoach();
+  }
+}
+
+function maybeOfferResume() {
+  const saved = loadPersisted();
+  const elExisting = document.getElementById("resume-offer");
+  if (!saved || !isLivedMode(saved.mode) || saved.ended) {
+    if (elExisting) elExisting.remove();
+    return;
+  }
+  let el = elExisting;
+  if (!el) {
+    const host = document.querySelector("#screen-mode .max-w-2xl");
+    if (!host) return;
+    el = document.createElement("div");
+    el.id = "resume-offer";
+    const titleBlock = host.querySelector(".text-center.mb-8");
+    if (titleBlock && titleBlock.nextSibling) host.insertBefore(el, titleBlock.nextSibling);
+    else host.prepend(el);
+  }
+  el.className = "mb-4 rounded-2xl border border-amber-800/50 bg-amber-950/30 px-4 py-3";
+  el.innerHTML = `
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="text-sm text-amber-100/90">
+        Resume <strong class="text-white">${modeBadge(saved.mode)}</strong> at age ${saved.age}?
+      </div>
+      <div class="flex gap-2">
+        <button type="button" class="px-3 py-1.5 rounded-lg border border-slate-600 text-[10px] uppercase font-bold text-slate-300" onclick="dismissResume()">Dismiss</button>
+        <button type="button" class="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-[10px] uppercase font-bold" onclick="resumeSaved()">Resume</button>
+      </div>
+    </div>`;
+}
+
+function dismissResume() {
+  clearPersisted();
+  const el = document.getElementById("resume-offer");
+  if (el) el.remove();
+}
+
+function resumeSaved() {
+  const saved = loadPersisted();
+  if (!saved) return;
+  const el = document.getElementById("resume-offer");
+  if (el) el.classList.add("hidden");
+  startMode(saved.mode, { resume: saved });
 }
 
 /* ===================== CLASSROOM WIZARD ===================== */
@@ -654,7 +909,10 @@ function renderClassroomWizard() {
     const t = state.plan.time;
     body = `
       <h2 class="font-display text-xl font-bold text-white">Time management</h2>
-      <p class="text-sm text-slate-400">Hours per week. Sleep, sabbath, serve, learn, and family time shape health and happiness as much as money.</p>
+      <p class="text-sm text-slate-400">Hours per week (out of 168). Sleep, sabbath, serve, learn, and family time shape health and ${joyLabel(
+        state.mode
+      ).toLowerCase()} as much as money.</p>
+      <div id="c-hours-live" class="mt-2 font-mono text-[12px] text-teal-300/90">Used: — / 168</div>
       <div class="grid grid-cols-2 gap-2 mt-3">
         ${[
           ["work", "Work", t.work],
@@ -723,6 +981,39 @@ function renderClassroomWizard() {
       <button type="button" class="flex-1 rounded-xl border border-slate-700 py-2.5 text-[11px] font-bold uppercase tracking-wider" onclick="classroomBack()">${classroomStep === 0 ? "Modes" : "Back"}</button>
       <button type="button" class="flex-1 rounded-xl bg-teal-500 text-slate-950 py-2.5 text-[11px] font-bold uppercase tracking-wider" onclick="classroomNext()">${classroomStep >= 4 ? "See lifetime results" : "Next"}</button>
     </div>`;
+
+  if (classroomStep === 2) {
+    const live = document.getElementById("c-hours-live");
+    if (live) {
+      const used = weeklyHours(state);
+      live.textContent = `Used: ${used} / ${WEEK_HOURS} · ${WEEK_HOURS - used} free`;
+      live.className = `mt-2 font-mono text-[12px] ${used > WEEK_HOURS ? "text-rose-400" : "text-teal-300/90"}`;
+    }
+    ["work", "sleep", "learn", "serve", "social", "fun"].forEach((k) => {
+      document.getElementById(`c-t-${k}`)?.addEventListener("input", () => {
+        ["work", "sleep", "learn", "serve", "social", "fun"].forEach((key) => {
+          const el = document.getElementById(`c-t-${key}`);
+          if (el) state.plan.time[key] = Number(el.value) || 0;
+        });
+        state.plan.time.sabbath = document.getElementById("c-sabbath")?.checked ? 1 : 0;
+        const u = weeklyHours(state);
+        const l = document.getElementById("c-hours-live");
+        if (l) {
+          l.textContent = `Used: ${u} / ${WEEK_HOURS} · ${WEEK_HOURS - u} free`;
+          l.className = `mt-2 font-mono text-[12px] ${u > WEEK_HOURS ? "text-rose-400" : "text-teal-300/90"}`;
+        }
+      });
+    });
+    document.getElementById("c-sabbath")?.addEventListener("change", () => {
+      state.plan.time.sabbath = document.getElementById("c-sabbath").checked ? 1 : 0;
+      const u = weeklyHours(state);
+      const l = document.getElementById("c-hours-live");
+      if (l) {
+        l.textContent = `Used: ${u} / ${WEEK_HOURS} · ${WEEK_HOURS - u} free`;
+        l.className = `mt-2 font-mono text-[12px] ${u > WEEK_HOURS ? "text-rose-400" : "text-teal-300/90"}`;
+      }
+    });
+  }
 }
 
 function pickJob(id) {
@@ -824,6 +1115,8 @@ function runClassroomProjection() {
 function renderOngoingPlan() {
   const p = state.plan;
   const panel = document.getElementById("panel-main");
+  const used = weeklyHours(state);
+  const free = WEEK_HOURS - used;
   panel.innerHTML = `
     <div class="flex items-start justify-between gap-2">
       <div>
@@ -837,40 +1130,53 @@ function renderOngoingPlan() {
       <div class="rounded-xl bg-slate-900 border border-slate-800 p-2"><div class="text-[8px] text-slate-500 uppercase">Share</div><div class="text-white font-semibold ${p.sharePct >= 10 ? "text-teal-300" : "text-rose-300"}">${p.sharePct}%</div></div>
     </div>
     <div class="text-sm text-slate-400 mt-3 space-y-1">
-      <div><span class="text-slate-500">Time:</span> work ${p.time.work}h · sleep ${p.time.sleep}h · serve ${p.time.serve}h · learn ${p.time.learn}h · social ${p.time.social}h · fun ${p.time.fun}h ${p.time.sabbath ? "· sabbath" : ""}</div>
+      <div><span class="text-slate-500">Job:</span> ${state.job.label}</div>
+      <div><span class="text-slate-500">Time:</span> work ${p.time.work}h · sleep ${p.time.sleep}h · serve ${p.time.serve}h · learn ${p.time.learn}h · social ${p.time.social}h · fun ${p.time.fun}h ${p.time.sabbath ? "· sabbath" : ""} <span class="text-slate-500">(${used}/${WEEK_HOURS}, ${free} free)</span></div>
       <div><span class="text-slate-500">Talent:</span> ${domainById(p.talentDomain).label} → ${focusById(p.talentFocus).label}</div>
       <div><span class="text-slate-500">Covered:</span> ${Object.entries(state.insurance).filter(([, v]) => v).map(([k]) => k).join(", ") || "none"}</div>
     </div>
-    <p class="text-[12px] text-slate-500 mt-3">Press <strong class="text-slate-300">Next Year</strong> to live another year. Low happiness or health will invite opportunities.</p>
+    <p class="text-[12px] text-slate-500 mt-3">Press <strong class="text-slate-300">Next Year</strong> to live another year. Low ${joyLabel(
+      state.mode
+    ).toLowerCase()} or health will invite opportunities.</p>
   `;
 }
 
 function openPlanEditor() {
-  if (!state || state.mode !== "ongoing") return;
-  classroomStep = 1;
-  // Reuse classroom steps 1-4 as editor, then return to ongoing
+  if (!state || !isLivedMode(state.mode)) return;
   state._editingPlan = true;
   document.getElementById("btn-advance").classList.add("hidden");
   renderPlanEditor();
 }
 
 function renderPlanEditor() {
-  // Lightweight: jump into spending/time/talent/protection single scroll form
   const p = state.plan;
   const panel = document.getElementById("panel-main");
+  const used = weeklyHours(state);
+  const canChangeJob = isLabMode(state.mode) || state.mode === "ongoing";
   panel.innerHTML = `
     <h2 class="font-display text-lg font-bold text-white">Adjust plan</h2>
+    <p class="text-[12px] text-slate-500 mt-1">Home is locked behind a confirm while you edit — finish with Save or Cancel.</p>
+    ${
+      canChangeJob
+        ? `<label class="block text-[10px] text-slate-500 uppercase mt-3">Job
+      <select id="e-job" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-sm text-white">
+        ${JOBS.map((j) => `<option value="${j.id}" ${state.job.id === j.id ? "selected" : ""}>${j.label} (${money(j.salary)}/yr)</option>`).join("")}
+      </select>
+    </label>`
+        : ""
+    }
     <div class="grid grid-cols-3 gap-2 mt-3">
       ${[["spendPct", "Spend", p.spendPct], ["savePct", "Save", p.savePct], ["sharePct", "Share", p.sharePct]]
         .map(([k, l, v]) => `<label class="text-[10px] text-slate-500 uppercase">${l}<input id="e-${k}" type="number" value="${v}" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 font-mono text-sm text-white" /></label>`)
         .join("")}
     </div>
-    <div class="grid grid-cols-2 gap-2 mt-3">
+    <div class="mt-3 font-mono text-[12px] ${used > WEEK_HOURS ? "text-rose-400" : "text-teal-300/90"}" id="e-hours-live">${used} / ${WEEK_HOURS} hours used · ${WEEK_HOURS - used} free</div>
+    <div class="grid grid-cols-2 gap-2 mt-2">
       ${["work", "sleep", "learn", "serve", "social", "fun"]
-        .map((k) => `<label class="text-[10px] text-slate-500 uppercase">${k}<input id="e-t-${k}" type="number" value="${p.time[k]}" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 font-mono text-sm text-white" /></label>`)
+        .map((k) => `<label class="text-[10px] text-slate-500 uppercase">${k}<input id="e-t-${k}" type="number" value="${p.time[k]}" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 font-mono text-sm text-white" oninput="updateEditorHoursLive()" /></label>`)
         .join("")}
     </div>
-    <label class="flex items-center gap-2 mt-3 text-sm"><input id="e-sabbath" type="checkbox" ${p.time.sabbath ? "checked" : ""} /> Weekly sabbath</label>
+    <label class="flex items-center gap-2 mt-3 text-sm"><input id="e-sabbath" type="checkbox" ${p.time.sabbath ? "checked" : ""} onchange="updateEditorHoursLive()" /> Weekly sabbath (~8h)</label>
     <label class="block text-[10px] text-slate-500 uppercase mt-3">Talent domain
       <select id="e-domain" class="mt-1 w-full rounded-lg bg-slate-950 border border-slate-700 px-2 py-2 text-sm text-white">
         ${TALENT_DOMAINS.map((d) => `<option value="${d.id}" ${p.talentDomain === d.id ? "selected" : ""}>${d.label}</option>`).join("")}
@@ -893,6 +1199,22 @@ function renderPlanEditor() {
   `;
 }
 
+function updateEditorHoursLive() {
+  if (!state) return;
+  const keys = ["work", "sleep", "learn", "serve", "social", "fun"];
+  let used = 0;
+  keys.forEach((k) => {
+    const el = document.getElementById(`e-t-${k}`);
+    used += Number(el?.value) || 0;
+  });
+  if (document.getElementById("e-sabbath")?.checked) used += 8;
+  const live = document.getElementById("e-hours-live");
+  if (live) {
+    live.textContent = `${used} / ${WEEK_HOURS} hours used · ${WEEK_HOURS - used} free`;
+    live.className = `mt-3 font-mono text-[12px] ${used > WEEK_HOURS ? "text-rose-400" : "text-teal-300/90"}`;
+  }
+}
+
 function cancelPlanEdit() {
   state._editingPlan = false;
   document.getElementById("btn-advance").classList.remove("hidden");
@@ -906,6 +1228,14 @@ function savePlanEdit() {
   if (Math.abs(spend + save + share - 100) > 0.5) {
     alert("Spend + Save + Share must total 100%.");
     return;
+  }
+  const jobEl = document.getElementById("e-job");
+  if (jobEl) {
+    const next = jobById(jobEl.value);
+    if (next.id !== state.job.id) {
+      addLog(`Job change: ${state.job.label} → ${next.label}.`, true);
+      state.job = next;
+    }
   }
   state.plan.spendPct = spend;
   state.plan.savePct = save;
@@ -924,10 +1254,11 @@ function savePlanEdit() {
   addLog("Plan updated. Next years will follow the new stewardship choices.", true);
   renderOngoingPlan();
   renderHUD();
+  if (state.mode === "wizard") refreshCoach();
 }
 
 function advanceYear() {
-  if (!state || state.mode !== "ongoing" || state.ended || state._editingPlan) return;
+  if (!state || !isLivedMode(state.mode) || state.ended || state._editingPlan) return;
   if (pendingEvent) return;
 
   const before = state.age;
@@ -935,6 +1266,7 @@ function advanceYear() {
   addLog(`Year lived. Net worth ${money(netWorth())}. Score ${money(lifetimeScore())}.`);
 
   if (state.ended) {
+    clearPersisted();
     showEndScreen();
     return;
   }
@@ -944,22 +1276,36 @@ function advanceYear() {
     addLog("Wage years end. Living on savings, investments, and stewardship through 85.", true);
   }
 
-  // Opportunity / event cadence — not every year, but often enough to teach
+  // Opportunity / event cadence — lab modes are denser (David: finished Ongoing too fast)
   const needJoy = state.happiness < 55;
   const needHealth = state.health < 55;
   const roll = Math.random();
-  if (needJoy && roll < 0.55) {
-    presentOpportunity(Math.random() < 0.5 ? "soup" : Math.random() < 0.5 ? "trip" : "spa");
-  } else if (needHealth && roll < 0.4) {
+  const dense = isLabMode(state.mode);
+  const joyChance = dense ? 0.7 : 0.55;
+  const healthChance = dense ? 0.5 : 0.4;
+  const eventChance = dense ? 0.38 : 0.22;
+  const oppChance = dense ? 0.55 : 0.32;
+
+  if (needJoy && roll < joyChance) {
+    const joyPool = dense ? ["soup", "trip", "spa", "vacation_ad", "family_night"] : ["soup", "trip", "spa"];
+    presentOpportunity(joyPool[Math.floor(Math.random() * joyPool.length)]);
+  } else if (needHealth && roll < healthChance) {
     presentOpportunity("class");
-  } else if (roll < 0.22) {
+  } else if (roll < eventChance) {
     presentLifeEvent();
-  } else if (roll < 0.32) {
-    presentOpportunity(OPPORTUNITIES[Math.floor(Math.random() * OPPORTUNITIES.length)].id);
+  } else if (roll < oppChance) {
+    const pool = dense
+      ? OPPORTUNITIES
+      : OPPORTUNITIES.filter((o) => !["car_ad", "home_ad", "vacation_ad"].includes(o.id));
+    presentOpportunity(pool[Math.floor(Math.random() * pool.length)].id);
   }
 
   renderHUD();
   renderOngoingPlan();
+
+  if (state.mode === "wizard") {
+    refreshCoach();
+  }
 }
 
 function presentOpportunity(id) {
@@ -968,10 +1314,16 @@ function presentOpportunity(id) {
   document.getElementById("event-kind").textContent = opp.kind;
   document.getElementById("event-title").textContent = opp.title;
   document.getElementById("event-body").textContent = opp.body;
-  document.getElementById("event-visual").style.backgroundImage = opp.visual.includes("url")
-    ? opp.visual
-    : opp.visual;
-  document.getElementById("event-visual").style.background = opp.visual;
+  const vis = document.getElementById("event-visual");
+  vis.style.backgroundImage = "";
+  vis.style.background = "";
+  if (opp.visual.includes("url(")) {
+    vis.style.background = opp.visual;
+    vis.style.backgroundSize = "cover";
+    vis.style.backgroundPosition = "center";
+  } else {
+    vis.style.background = opp.visual;
+  }
   const box = document.getElementById("event-choices");
   box.innerHTML = opp.choices
     .map(
@@ -1135,14 +1487,38 @@ function showEndScreen() {
 
   renderHUD();
   toggleModal("modal-end", true);
+  clearPersisted();
+}
+
+async function refreshCoach() {
+  const body = document.getElementById("coach-body");
+  const panel = document.getElementById("coach-panel");
+  if (!body || !state) return;
+  panel?.classList.remove("hidden");
+  body.textContent = "Reading your numbers…";
+  if (!window.CoachLab) {
+    body.textContent = "Coach module not loaded.";
+    return;
+  }
+  const result = await CoachLab.askCoach(state);
+  CoachLab.renderCoachInto(body, result);
+}
+
+function openCoachPanel() {
+  const panel = document.getElementById("coach-panel");
+  panel?.classList.remove("hidden");
+  refreshCoach();
 }
 
 /* ===================== BOOT ===================== */
 
 window.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("btn-home").addEventListener("click", showModeSelect);
+  document.getElementById("btn-home").addEventListener("click", requestHome);
   document.getElementById("btn-advance").addEventListener("click", advanceYear);
   document.getElementById("btn-edit-plan").addEventListener("click", openPlanEditor);
+  document.getElementById("btn-feedback")?.addEventListener("click", () => FeedbackLab?.open());
+  document.getElementById("btn-coach")?.addEventListener("click", openCoachPanel);
+  document.getElementById("btn-coach-refresh")?.addEventListener("click", refreshCoach);
   document.getElementById("btn-clear-log").addEventListener("click", () => {
     if (state) state.log = [];
     renderJournal();
@@ -1150,20 +1526,28 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-play-again").addEventListener("click", () => {
     const mode = state?.mode || "classroom";
     toggleModal("modal-end", false);
+    clearPersisted();
     startMode(mode);
   });
   showModeSelect();
+  maybeOfferResume();
 });
 
 // Expose handlers used by inline HTML
 Object.assign(window, {
   startMode,
   showModeSelect,
+  requestHome,
   pickJob,
   classroomBack,
   classroomNext,
   resolveOpportunity,
   resolveSpecial,
   cancelPlanEdit,
-  savePlanEdit
+  savePlanEdit,
+  updateEditorHoursLive,
+  dismissResume,
+  resumeSaved,
+  refreshCoach,
+  openCoachPanel
 });
